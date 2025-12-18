@@ -72,7 +72,7 @@ def main():
     extractor = FeatureExtractor(timestamps_arr, window_size=0.1)
 
     views = {
-        "Fixed_Bins": (extractor.get_fixed_bins(), "poisson"),
+        "Fixed_Bins": (extractor.get_fixed_window_count(), "l1"),
         "Sliding_Window": (extractor.get_sliding_window_count(), "l2"),
         "Inter_Arrival_Times": (extractor.get_inter_arrival_times(), "l2")
     }

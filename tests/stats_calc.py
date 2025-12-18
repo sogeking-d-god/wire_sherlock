@@ -1,4 +1,5 @@
 import math
+import numpy as np
 
 """!
 @brief class for calculating EWMA and EWMVAR

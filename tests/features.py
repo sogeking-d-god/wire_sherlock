@@ -1,3 +1,5 @@
+import numpy as np
+
 class FeatureExtractor:
     def __init__(self, timestamps, window_size=0.1):
         self.timestamps = np.array(timestamps)
@@ -6,9 +8,9 @@ class FeatureExtractor:
     def get_fixed_window_count(self):
         if len(self.timestamps) == 0:
             return []
-        bins = np.zeros(self.timestamps[-1] // self.window_size + 1, dtype=int )
+        bins = np.zeros(int(self.timestamps[-1] // self.window_size + 1), dtype=int)
         for t in self.timestamps:
-            bins[t // self.window_size] += 1
+            bins[int(t // self.window_size)] += 1
         return bins
 
     def get_sliding_window_count(self):
