@@ -66,3 +66,6 @@ pcap_files/
 
 #graph images
 *.png
+
+#exec files
+c_pcap_processing/wiresherlock
