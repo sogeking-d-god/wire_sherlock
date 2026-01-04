@@ -56,3 +56,13 @@ dkms.conf
 
 #python venv
 venv/
+.venv/
+__pycache__/
+
+#PCAP files
+pcap_files/
+*.pcap
+*.pcapng
+
+#graph images
+*.png
