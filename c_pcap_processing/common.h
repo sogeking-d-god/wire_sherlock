@@ -21,7 +21,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "./src/structs/layer3.h"
 
 #define IPV4_BYTES 4
 #define IPV6_BYTES 16
