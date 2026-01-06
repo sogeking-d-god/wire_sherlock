@@ -31,6 +31,11 @@ typedef enum {
     IP_VERSION_6 = 6
 } ip_version_t;
 
+typedef enum {
+    FALSE = 0,
+    TRUE  = 1
+} boolean_e;
+
 typedef union
 {
     uint8_t v4[IPV4_BYTES];
@@ -38,6 +43,7 @@ typedef union
 } ip_addr_t;
 
 
+//TO-DO add more data and stat fields for flow table processing
 typedef struct
 {
     // Layer 2 (Ethernet)
