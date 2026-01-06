@@ -23,7 +23,7 @@ proto_handler_return_codes_e handle_ipv6_protocol(const uint8_t *data, uint32_t 
 
     if (ret_val == PROTO_HANDLER_SUCCESS)
     {
-        handle_l4_packet(data + IPV6_HEADER_LEN, len - IPV6_HEADER_LEN, info);
+        ret_val = handle_l4_packet(data + IPV6_HEADER_LEN, len - IPV6_HEADER_LEN, info);
     }
 
     return ret_val;
