@@ -1,9 +1,11 @@
 #include "parser.h"
 
+//TO-DO: switch from pcap_loop to pcap_next_ex to allow saving the pointer to the packet inside the file
 
 parser_return_codes_e parse_pcap_file(const char* file_path)
 {
     parser_return_codes_e ret_val = PARSER_SUCCESS;
+    flow_table_t * flow_table;
 
     char error_buffer[PCAP_ERRBUF_SIZE];
     pcap_t *handle = pcap_open_offline(file_path, error_buffer);
@@ -14,16 +16,30 @@ parser_return_codes_e parse_pcap_file(const char* file_path)
     }
     else
     {
-        if (pcap_loop(handle, 0, advanced_packet_handler, NULL) < 0)
+        flow_table = flow_table_init();
+
+        if(!flow_table)
+        {
+            fprintf(stderr, "Could not initialize flow table\n");
+            ret_val = PARSER_FLOW_TABLE_INIT_ERROR;
+        }
+        else if (pcap_loop(handle, 0, advanced_packet_handler, (uint8_t *)flow_table) < 0)
         {
             fprintf(stderr, "Error processing packets: %s\n", pcap_geterr(handle));
-            return PARSER_PACKET_PROCESSING_ERROR;
+            ret_val = PARSER_PACKET_PROCESSING_ERROR;
+        }
+        else
+        {
+            flow_table_print_report(flow_table);
+            flow_table_free_table(flow_table);
         }
 
         pcap_close(handle);
 
         printf("---------------------------------\n");
         printf("Finished reading all packets from %s\n", file_path);
+
+
     }
     return ret_val;
 }
@@ -32,7 +48,12 @@ void advanced_packet_handler(uint8_t *args, const struct pcap_pkthdr *header, co
 {
     packet_info_t info;
     uint32_t len = header->len;
-    handle_l2_packet(packet, len, &info);
+    flow_table_t * flow_table = (flow_table_t *)args;
+    proto_handler_return_codes_e ret_val = handle_l2_packet(packet, len, &info);
+    if(ret_val == PROTO_HANDLER_SUCCESS)
+    {
+        flow_table_process_packet(flow_table, &info);
+    }
 }
 
 void basic_packet_handler(uint8_t *args, const struct pcap_pkthdr *header, const uint8_t *packet)

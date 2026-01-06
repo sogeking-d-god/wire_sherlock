@@ -23,36 +23,43 @@ flow_table_t* flow_table_init()
     return table;
 }
 
-void flow_table_print_report(flow_table_t *table) {
-    if (table)
-    {
+void flow_table_print_report(flow_table_t *table)
+{
+    if (!table) return;
 
-        printf("\n--- Flow Table Report ---\n");
-        printf("Total Flows Detected: %u\n", table->flow_count);
-        printf("------------------------------------------------------------------\n");
-        printf("%-15s %-6s <-> %-15s %-6s | Pro | Pkts | Bytes\n", "Src IP", "Port", "Dst IP", "Port");
-        printf("------------------------------------------------------------------\n");
+    printf("\n--- Flow Table Report ---\n");
+    printf("Total Flows Detected: %u\n", table->flow_count);
+    printf("------------------------------------------------------------------\n");
+    printf("%-15s %-6s <-> %-15s %-6s | Pro | Pkts | Bytes\n", "Src IP", "Port", "Dst IP", "Port");
+    printf("------------------------------------------------------------------\n");
 
-        for (int i = 0; i < HASH_SIZE; i++) {
-            flow_node_t *node = table->buckets[i];
-            while (node) {
-                struct in_addr src_addr, dst_addr;
-                src_addr.s_addr = node->devices[0].ip;
-                dst_addr.s_addr = node->devices[1].ip;
+    for (int i = 0; i < HASH_SIZE; i++) {
+        flow_node_t *node = table->buckets[i];
+        while (node) {
+            struct in_addr sa, da;
+            sa.s_addr = node->devices[0].ip;
+            da.s_addr = node->devices[1].ip;
 
-                uint32_t total_pkts = node->devices[0].data.packets_sent + node->devices[1].data.packets_sent;
-                uint32_t total_bytes = node->devices[0].data.bytes_sent + node->devices[1].data.bytes_sent;
+            uint32_t total_pkts = node->devices[0].data.packets_sent + node->devices[1].data.packets_sent;
+            uint32_t total_bytes = node->devices[0].data.bytes_sent + node->devices[1].data.bytes_sent;
 
-                printf("%-15s %-6u <-> %-15s %-6u | %-3u | %-4u | %-10u\n",
-                    inet_ntoa(src_addr), node->devices[0].port,
-                    inet_ntoa(dst_addr), node->devices[1].port,
-                    node->protocol, total_pkts, total_bytes);
+            // שימוש בבאפרים נפרדים וגדולים מספיק
+            char s_str[INET_ADDRSTRLEN];
+            char d_str[INET_ADDRSTRLEN];
 
-                node = node->next;
-            }
+            // המרה בטוחה למחרוזות
+            inet_ntop(AF_INET, &sa, s_str, INET_ADDRSTRLEN);
+            inet_ntop(AF_INET, &da, d_str, INET_ADDRSTRLEN);
+
+            printf("%-15s %-6u <-> %-15s %-6u | %-3u | %-4u | %-10u\n",
+                s_str, node->devices[0].port,
+                d_str, node->devices[1].port,
+                node->protocol, total_pkts, total_bytes);
+
+            node = node->next;
         }
-        printf("------------------------------------------------------------------\n");
     }
+    printf("------------------------------------------------------------------\n");
 }
 
 void flow_table_free_table(flow_table_t *table)
@@ -98,11 +105,21 @@ void flow_table_free_node(flow_node_t *node)
 static flow_key_t create_flow_key(packet_info_t *info, flow_table_first_device_e * first_dev)
 {
     flow_key_t key;
+    uint32_t s_addr = *(uint32_t*)info->src_ip.v4;
+    uint32_t d_addr = *(uint32_t*)info->dst_ip.v4;
 
-    if (info->src_ip <= info->dst_ip)
+    memset(&key, 0, sizeof(flow_key_t));
+
+
+    if(info->ip_version == IP_VERSION_6)
     {
-        key.src_ip   = info->src_ip;
-        key.dst_ip   = info->dst_ip;
+        //TODO: add handler for ipv6 later
+    }
+
+    else if (s_addr <= d_addr)
+    {
+        key.src_ip = s_addr;
+        key.dst_ip = d_addr;
         key.src_port = info->src_port;
         key.dst_port = info->dst_port;
 
@@ -110,14 +127,14 @@ static flow_key_t create_flow_key(packet_info_t *info, flow_table_first_device_e
     }
     else
     {
-        key.src_ip   = info->dst_ip;
-        key.dst_ip   = info->src_ip;
+        key.src_ip = d_addr;
+        key.dst_ip = s_addr;
         key.src_port = info->dst_port;
         key.dst_port = info->src_port;
 
         *first_dev = FLOW_TABLE_FIRST_DEVICE_DST;
     }
-    key.protocol = info->protocol;
+    key.protocol = info->ip_proto;
 
     return key;
 }
@@ -193,7 +210,7 @@ flow_table_process_packet_return_e flow_table_process_packet(flow_table_t *table
         {
             //TO DO: fill message node data
 
-            msg->payload_len = info->payload_len;
+            msg->payload_len = info->packet_len;
 
             msg->next = NULL;
 
