@@ -12,6 +12,7 @@ proto_handler_return_codes_e handle_icmp_packet(const uint8_t *data, uint32_t le
     else
     {
         struct icmp *icmp_hdr = (struct icmp *)data;
+        info->packet_len -= ICMP_MINLEN;
     }
 
     return ret_val;
