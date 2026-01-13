@@ -5,7 +5,7 @@ proto_handler_return_codes_e handle_l4_packet(const uint8_t *data, uint32_t len,
 {
     proto_handler_return_codes_e ret_val = PROTO_HANDLER_SUCCESS;
 
-    switch (info->ip_proto)
+    switch (info->ip_info.ip_proto)
     {
         case IPPROTO_TCP:
             ret_val = handle_tcp_packet(data, len, info);

@@ -2,6 +2,8 @@
 
 //TO-DO: switch from pcap_loop to pcap_next_ex to allow saving the pointer to the packet inside the file
 
+mac_table_t * mac_table_g;
+
 parser_return_codes_e parse_pcap_file(const char* file_path)
 {
     parser_return_codes_e ret_val = PARSER_SUCCESS;
@@ -17,11 +19,17 @@ parser_return_codes_e parse_pcap_file(const char* file_path)
     else
     {
         flow_table = flow_table_init();
+        mac_table_g = mac_table_init();
 
         if(!flow_table)
         {
             fprintf(stderr, "Could not initialize flow table\n");
             ret_val = PARSER_FLOW_TABLE_INIT_ERROR;
+        }
+        else if(!mac_table_g)
+        {
+            fprintf(stderr, "Could not initialize mac table\n");
+            ret_val = PARSER_MAC_TABLE_INIT_ERROR;
         }
         else if (pcap_loop(handle, 0, advanced_packet_handler, (uint8_t *)flow_table) < 0)
         {
@@ -30,8 +38,11 @@ parser_return_codes_e parse_pcap_file(const char* file_path)
         }
         else
         {
-            flow_table_print_report(flow_table);
+            // flow_table_print_report(flow_table);
             flow_table_free_table(flow_table);
+
+            mac_table_print_report(mac_table_g);
+            mac_table_free_table(mac_table_g);
         }
 
         pcap_close(handle);

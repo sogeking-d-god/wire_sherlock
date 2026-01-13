@@ -10,7 +10,8 @@ CFLAGS = -Wall -Wextra -Wpedantic -Wshadow -g -I. \
          -I./src/layers/l4/udp \
          -I./src/layers/l4/icmp \
          -I./helper \
-         -I./src/structs \
+         -I./src/structs/layer4_hash \
+         -I./src/structs/layer2_hash \
          -D_DEFAULT_SOURCE
 
 LDFLAGS = -lpcap
@@ -26,7 +27,8 @@ SRCS = main.c \
        src/layers/l4/udp/udp_handler.c \
        src/layers/l4/icmp/icmp_handler.c \
        helper/print_packet.c\
-       src/structs/flow_table.c
+       src/structs/layer4_hash/flow_table.c\
+       src/structs/layer2_hash/mac_table.c\
 
 # יצירת רשימת אובייקטים מתוך ה-SRCS
 OBJS = $(SRCS:.c=.o)

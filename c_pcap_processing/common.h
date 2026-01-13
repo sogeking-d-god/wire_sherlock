@@ -22,6 +22,7 @@
 #include <stdio.h>
 
 
+
 #define IPV4_BYTES 4
 #define IPV6_BYTES 16
 
@@ -42,6 +43,14 @@ typedef union
 } ip_addr_t;
 
 
+typedef struct
+{
+    ip_addr_t src_ip;
+    ip_addr_t dst_ip;
+    ip_version_t ip_version;
+    uint8_t  ip_proto;
+}ip_info_t;
+
 //TO-DO add more data and stat fields for flow table processing
 typedef struct
 {
@@ -51,10 +60,7 @@ typedef struct
     uint16_t ether_type;
 
     // Layer 3 (IP)
-    ip_addr_t src_ip;
-    ip_addr_t dst_ip;
-    ip_version_t ip_version;
-    uint8_t  ip_proto;
+    ip_info_t ip_info;
 
     // Layer 4 (TCP/UDP)
     uint16_t src_port;
@@ -69,6 +75,13 @@ typedef enum {
     PROTO_HANDLER_CORRUPT_PACKET = -2
 } proto_handler_return_codes_e;
 
+typedef struct
+{
+    proto_handler_return_codes_e ret_val;
+    uint32_t header_len;
+    ip_info_t ip_info;
+}l3_ret_data_t;
+
 /**
  * @brief A function pointer type for protocol handlers
  *
@@ -79,5 +92,14 @@ typedef enum {
  * @return Returns a proto_handler_return_codes_e indicating success or type of error
  */
 typedef proto_handler_return_codes_e (*protocol_handler_t) (const uint8_t * data, uint32_t len, packet_info_t * info);
+
+typedef struct mac_table mac_table_t;
+typedef struct flow_table flow_table_t;
+
+#include "mac_table.h"
+#include "flow_table.h"
+
+
+extern mac_table_t * mac_table_g;
 
 #endif

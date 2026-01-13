@@ -9,12 +9,12 @@ static uint32_t calculate_hash(flow_key_t *key)
     hash ^= key->src_port;
     hash ^= key->dst_port;
     hash ^= key->protocol;
-    return hash % HASH_SIZE;
+    return hash % FLOW_HASH_SIZE;
 }
 
 flow_table_t* flow_table_init()
 {
-    flow_table_t *table = (flow_table_t*)malloc(sizeof(flow_table_t));
+    flow_table_t *table = (flow_table_t*)malloc(FLOW_TABLE_SIZE);
     if (table)
     {
         memset(table->buckets, 0, sizeof(table->buckets));
@@ -33,7 +33,7 @@ void flow_table_print_report(flow_table_t *table)
     printf("%-15s %-6s <-> %-15s %-6s | Pro | Pkts | Bytes\n", "Src IP", "Port", "Dst IP", "Port");
     printf("------------------------------------------------------------------\n");
 
-    for (int i = 0; i < HASH_SIZE; i++) {
+    for (int i = 0; i < FLOW_HASH_SIZE; i++) {
         flow_node_t *node = table->buckets[i];
         while (node) {
             struct in_addr sa, da;
@@ -68,7 +68,7 @@ void flow_table_free_table(flow_table_t *table)
     flow_node_t *next_node;
     if (table)
     {
-        for (int i = 0; i < HASH_SIZE; i++)
+        for (int i = 0; i < FLOW_HASH_SIZE; i++)
         {
             current_node = table->buckets[i];
             while (current_node)
@@ -105,13 +105,13 @@ void flow_table_free_node(flow_node_t *node)
 static flow_key_t create_flow_key(packet_info_t *info, flow_table_first_device_e * first_dev)
 {
     flow_key_t key;
-    uint32_t s_addr = *(uint32_t*)info->src_ip.v4;
-    uint32_t d_addr = *(uint32_t*)info->dst_ip.v4;
+    uint32_t s_addr = *(uint32_t*)info->ip_info.src_ip.v4;
+    uint32_t d_addr = *(uint32_t*)info->ip_info.dst_ip.v4;
 
     memset(&key, 0, sizeof(flow_key_t));
 
 
-    if(info->ip_version == IP_VERSION_6)
+    if(info->ip_info.ip_version == IP_VERSION_6)
     {
         //TODO: add handler for ipv6 later
     }
@@ -134,7 +134,7 @@ static flow_key_t create_flow_key(packet_info_t *info, flow_table_first_device_e
 
         *first_dev = FLOW_TABLE_FIRST_DEVICE_DST;
     }
-    key.protocol = info->ip_proto;
+    key.protocol = info->ip_info.ip_proto;
 
     return key;
 }

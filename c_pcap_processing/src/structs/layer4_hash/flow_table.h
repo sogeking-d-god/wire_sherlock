@@ -4,13 +4,14 @@
 #include "common.h"
 #include "parser.h"
 
-#define HASH_SIZE 2048
+#define FLOW_HASH_SIZE 2048
 #define FLOW_HASH_CONST 0x12345678
 #define DEVICES_IN_FLOW 2
 
 #define KEY_SIZE sizeof(flow_key_t)
 #define FLOW_NODE_SIZE sizeof(flow_node_t)
 #define MESSAGE_NODE_SIZE sizeof(message_node_t)
+#define FLOW_TABLE_SIZE sizeof(flow_table_t)
 
 
 // Linked list node for a single message within a flow
@@ -74,9 +75,9 @@ typedef struct flow_node
 } flow_node_t;
 
 // Hash table structure of flows
-typedef struct
+typedef struct flow_table
 {
-    flow_node_t *buckets[HASH_SIZE];
+    flow_node_t *buckets[FLOW_HASH_SIZE];
     uint32_t flow_count;
 } flow_table_t;
 
