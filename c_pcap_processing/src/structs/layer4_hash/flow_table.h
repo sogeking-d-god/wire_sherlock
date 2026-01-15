@@ -8,7 +8,7 @@
 #define FLOW_HASH_CONST 0x12345678
 #define DEVICES_IN_FLOW 2
 
-#define KEY_SIZE sizeof(flow_key_t)
+#define FLOW_KEY_SIZE sizeof(flow_key_t)
 #define FLOW_NODE_SIZE sizeof(flow_node_t)
 #define MESSAGE_NODE_SIZE sizeof(message_node_t)
 #define FLOW_TABLE_SIZE sizeof(flow_table_t)
@@ -44,7 +44,7 @@ typedef struct
 // Structure that holds device information in a flow
 typedef struct
 {
-    uint32_t ip;
+    ip_addr_t ip;
     uint16_t port;
     flow_device_data_t data;
 } flow_device_t;
@@ -53,11 +53,12 @@ typedef struct
 // Key structure to identify a flow
 typedef struct
 {
-    uint32_t src_ip;
-    uint32_t dst_ip;
+    ip_addr_t src_ip;
+    ip_addr_t dst_ip;
     uint16_t src_port;
     uint16_t dst_port;
     uint8_t  protocol;
+    ip_version_e ip_type;
 } flow_key_t;
 
 // Node structure for each flow in the hash table

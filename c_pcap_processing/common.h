@@ -29,7 +29,7 @@
 typedef enum {
     IP_VERSION_4 = 4,
     IP_VERSION_6 = 6
-} ip_version_t;
+} ip_version_e;
 
 typedef enum {
     FALSE = 0,
@@ -42,12 +42,19 @@ typedef union
     uint8_t  v6[IPV6_BYTES];
 } ip_addr_t;
 
+typedef struct
+{
+    ip_addr_t ip_addr;
+    ip_version_e ip_version;
+}ip_and_type_t;
+
+
 
 typedef struct
 {
     ip_addr_t src_ip;
     ip_addr_t dst_ip;
-    ip_version_t ip_version;
+    ip_version_e ip_version;
     uint8_t  ip_proto;
 }ip_info_t;
 

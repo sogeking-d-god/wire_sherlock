@@ -3,12 +3,23 @@
 static uint32_t calculate_hash(flow_key_t *key)
 {
     uint32_t hash = FLOW_HASH_CONST;
+    uint32_t *src_ptr = (uint32_t *)key->src_ip.v6;
+    uint32_t *dst_ptr = (uint32_t *)key->dst_ip.v6;
 
-    hash ^= key->src_ip;
-    hash ^= key->dst_ip;
+    // because ipv4 has 1 32 bit word, and ipv6 is the length of 4 ipv4, or the amount of bytes in ipv4 ^ 2
+    uint8_t seg_count = (key->ip_type == IP_VERSION_6) ? IPV4_BYTES : 1;
+
+    // because the key size is 32 bits, xor with each 32 bits segment of the address
+    for (int i = 0; i < seg_count; i++)
+    {
+        hash ^= src_ptr[i];
+        hash ^= dst_ptr[i];;
+    }
+
     hash ^= key->src_port;
     hash ^= key->dst_port;
     hash ^= key->protocol;
+    hash ^= key->ip_type;
     return hash % FLOW_HASH_SIZE;
 }
 
@@ -23,43 +34,51 @@ flow_table_t* flow_table_init()
     return table;
 }
 
+char* get_ip_str(const ip_addr_t *ip, ip_version_e ver, char * buf, size_t buflen)
+{
+    int family = (ver == IP_VERSION_6)?(AF_INET6):(AF_INET);
+
+    if (inet_ntop(family, ip, buf, buflen) == NULL)
+    {
+        snprintf(buf, buflen, "Unknown");
+    }
+    return buf;
+}
+
 void flow_table_print_report(flow_table_t *table)
 {
-    if (!table) return;
+    if (table)
+    {
+        printf("\n--- Flow Table Report ---\n");
+        printf("Total Flows Detected: %u\n", table->flow_count);
+        printf("------------------------------------------------------------------------------------------------------\n");
+        printf("%-40s %-6s <-> %-40s %-6s | Pro | Pkts | Bytes\n", "Src IP", "Port", "Dst IP", "Port");
+        printf("------------------------------------------------------------------------------------------------------\n");
 
-    printf("\n--- Flow Table Report ---\n");
-    printf("Total Flows Detected: %u\n", table->flow_count);
-    printf("------------------------------------------------------------------\n");
-    printf("%-15s %-6s <-> %-15s %-6s | Pro | Pkts | Bytes\n", "Src IP", "Port", "Dst IP", "Port");
-    printf("------------------------------------------------------------------\n");
+        for (int i = 0; i < FLOW_HASH_SIZE; i++)
+        {
+            flow_node_t *node = table->buckets[i];
+            while (node)
+            {
+                char s_str[INET6_ADDRSTRLEN];
+                char d_str[INET6_ADDRSTRLEN];
 
-    for (int i = 0; i < FLOW_HASH_SIZE; i++) {
-        flow_node_t *node = table->buckets[i];
-        while (node) {
-            struct in_addr sa, da;
-            sa.s_addr = node->devices[0].ip;
-            da.s_addr = node->devices[1].ip;
+                get_ip_str(&node->devices[0].ip, node->key.ip_type, s_str, sizeof(s_str));
+                get_ip_str(&node->devices[1].ip, node->key.ip_type, d_str, sizeof(d_str));
 
-            uint32_t total_pkts = node->devices[0].data.packets_sent + node->devices[1].data.packets_sent;
-            uint32_t total_bytes = node->devices[0].data.bytes_sent + node->devices[1].data.bytes_sent;
+                uint32_t total_pkts = node->devices[0].data.packets_sent + node->devices[1].data.packets_sent;
+                uint32_t total_bytes = node->devices[0].data.bytes_sent + node->devices[1].data.bytes_sent;
 
-            // שימוש בבאפרים נפרדים וגדולים מספיק
-            char s_str[INET_ADDRSTRLEN];
-            char d_str[INET_ADDRSTRLEN];
+                printf("%-40s %-6u <-> %-40s %-6u | %-3u | %-4u | %-10u\n",
+                    s_str, node->devices[0].port,
+                    d_str, node->devices[1].port,
+                    node->protocol, total_pkts, total_bytes);
 
-            // המרה בטוחה למחרוזות
-            inet_ntop(AF_INET, &sa, s_str, INET_ADDRSTRLEN);
-            inet_ntop(AF_INET, &da, d_str, INET_ADDRSTRLEN);
-
-            printf("%-15s %-6u <-> %-15s %-6u | %-3u | %-4u | %-10u\n",
-                s_str, node->devices[0].port,
-                d_str, node->devices[1].port,
-                node->protocol, total_pkts, total_bytes);
-
-            node = node->next;
+                node = node->next;
+            }
         }
     }
-    printf("------------------------------------------------------------------\n");
+
 }
 
 void flow_table_free_table(flow_table_t *table)
@@ -105,18 +124,35 @@ void flow_table_free_node(flow_node_t *node)
 static flow_key_t create_flow_key(packet_info_t *info, flow_table_first_device_e * first_dev)
 {
     flow_key_t key;
-    uint32_t s_addr = *(uint32_t*)info->ip_info.src_ip.v4;
-    uint32_t d_addr = *(uint32_t*)info->ip_info.dst_ip.v4;
+    ip_addr_t s_addr = info->ip_info.src_ip;
+    ip_addr_t d_addr = info->ip_info.dst_ip;
+    uint8_t addr_size;
+    uint8_t i = 0;
+    boolean_e is_src_smaller = TRUE;
 
-    memset(&key, 0, sizeof(flow_key_t));
+    memset(&key, 0, FLOW_KEY_SIZE);
 
+    // addr size  -1 so that the variables i and addr_size can be only 8 bits
 
-    if(info->ip_info.ip_version == IP_VERSION_6)
+    if(info->ip_info.ip_proto == IP_VERSION_4)
     {
-        //TODO: add handler for ipv6 later
+        addr_size = IPV4_BYTES - 1;
+    }
+    else
+    {
+        addr_size = IPV6_BYTES - 1;
     }
 
-    else if (s_addr <= d_addr)
+    //check if src addr truely is smaller than dest addres
+    for (; i <= addr_size; i++)
+    {
+        if(s_addr.v6[i] > d_addr.v6[i])
+        {
+            is_src_smaller = FALSE;
+        }
+    }
+
+    if (is_src_smaller)
     {
         key.src_ip = s_addr;
         key.dst_ip = d_addr;
@@ -155,7 +191,7 @@ flow_table_process_packet_return_e flow_table_process_packet(flow_table_t *table
         hash = calculate_hash(&key);
         node = table->buckets[hash];
 
-        while (node && memcmp(&node->key, &key, KEY_SIZE) != 0)
+        while (node && memcmp(&node->key, &key, FLOW_KEY_SIZE) != 0)
         {
             node = node->next;
         }
