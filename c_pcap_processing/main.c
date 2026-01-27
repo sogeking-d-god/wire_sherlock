@@ -1,7 +1,6 @@
 #include <main.h>
 
 
-
 int main(int argc, char** argv)
 {
     main_return_codes_e ret_val = MAIN_SUCCESS;

@@ -3,6 +3,8 @@
 //TO-DO: switch from pcap_loop to pcap_next_ex to allow saving the pointer to the packet inside the file
 
 mac_table_t * mac_table_g;
+ip_tree_t * ipv4_tree_g;
+ip_tree_t * ipv6_tree_g;
 
 parser_return_codes_e parse_pcap_file(const char* file_path)
 {
@@ -20,6 +22,8 @@ parser_return_codes_e parse_pcap_file(const char* file_path)
     {
         flow_table = flow_table_init();
         mac_table_g = mac_table_init();
+        ipv4_tree_g = ip_tree_init(IPV4_BYTES);
+        ipv6_tree_g = ip_tree_init(IPV6_BYTES);
 
         if(!flow_table)
         {
@@ -41,8 +45,14 @@ parser_return_codes_e parse_pcap_file(const char* file_path)
             // flow_table_print_report(flow_table);
             flow_table_free_table(flow_table);
 
-            mac_table_print_report(mac_table_g);
+            // mac_table_print_report(mac_table_g);
             mac_table_free_table(mac_table_g);
+
+            ip_tree_print_report(ipv4_tree_g);
+            ip_tree_free_tree(ipv4_tree_g);
+
+            ip_tree_print_report(ipv6_tree_g);
+            ip_tree_free_tree(ipv6_tree_g);
         }
 
         pcap_close(handle);

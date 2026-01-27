@@ -12,6 +12,7 @@ CFLAGS = -Wall -Wextra -Wpedantic -Wshadow -g -I. \
          -I./helper \
          -I./src/structs/layer4_hash \
          -I./src/structs/layer2_hash \
+         -I./src/structs/patricia_tree \
          -D_DEFAULT_SOURCE
 
 LDFLAGS = -lpcap
@@ -29,6 +30,7 @@ SRCS = main.c \
        helper/print_packet.c\
        src/structs/layer4_hash/flow_table.c\
        src/structs/layer2_hash/mac_table.c\
+       src/structs/patricia_tree/ip_tree.c\
 
 # יצירת רשימת אובייקטים מתוך ה-SRCS
 OBJS = $(SRCS:.c=.o)

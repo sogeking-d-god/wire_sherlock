@@ -25,6 +25,7 @@
 
 #define IPV4_BYTES 4
 #define IPV6_BYTES 16
+#define BITS_IN_BYTE 8
 
 typedef enum {
     IP_VERSION_4 = 4,
@@ -102,11 +103,14 @@ typedef proto_handler_return_codes_e (*protocol_handler_t) (const uint8_t * data
 
 typedef struct mac_table mac_table_t;
 typedef struct flow_table flow_table_t;
+typedef struct ip_tree ip_tree_t;
 
 #include "mac_table.h"
 #include "flow_table.h"
-
+#include "ip_tree.h"
 
 extern mac_table_t * mac_table_g;
+extern ip_tree_t * ipv4_tree_g;
+extern ip_tree_t * ipv6_tree_g;
 
 #endif

@@ -69,3 +69,6 @@ pcap_files/
 
 #exec files
 c_pcap_processing/wiresherlock
+
+#vs code json config files
+*.json
