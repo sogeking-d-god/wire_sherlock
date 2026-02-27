@@ -148,8 +148,6 @@ ip_tree_ret_codes_e ip_tree_insert(ip_tree_t *tree, uint8_t * ip, uint32_t packe
     boolean_e continue_loop = TRUE;
 
 
-    printf("DEBUG: ip_tree_insert:\n");
-
     if(!tree)
     {
         printf("error: ip tree is NULL error\n");
