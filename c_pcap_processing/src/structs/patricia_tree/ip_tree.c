@@ -11,9 +11,6 @@ static ip_tree_diff_bit_ret_t ip_tree_find_diff_bit(uint8_t * new_ip, uint8_t * 
     ret_val.bit_found_flag = FALSE;
     ret_val.bit_index = ending_bit_index;
 
-
-
-
     // the loop includes the upper limit since we want to know the val of its bit to know to wich child to send the new ip to (0 or 1)
     for (bit_index = starting_bit_index; bit_index <= ending_bit_index && ret_val.bit_found_flag == FALSE; bit_index++)
     {
@@ -66,38 +63,6 @@ void ip_tree_free_tree(ip_tree_t* tree)
     }
 }
 
-typedef struct ip_node_test
-{
-    uint8_t * ip;
-    struct ip_node_test * next;
-}ip_node_test_t;
-
-
-ip_node_test_t * ip_arr_g = NULL;
-
-// helper debugging function that checks that we created every ip only once
-static ip_node_test_t * check_test(uint8_t *ip, ip_node_test_t ** ipp_array, uint8_t ip_addr_byte_count)
-{
-    if(!*ipp_array)
-    {
-        ip_node_test_t * ip_array;
-
-        ip_array = (ip_node_test_t *)malloc(sizeof(ip_node_test_t));
-        * ipp_array = ip_array;
-        // memccpy( ip_array->ip, ip, 1, tree.ip_addr_byte_count);
-        ip_array->ip = ip;
-        ip_array->next = NULL;
-        return ip_array;
-    }
-    if(memcmp(ip,(*ipp_array)->ip, ip_addr_byte_count) == 0)
-    {
-        return NULL;
-    }
-    else
-    {
-        return check_test(ip,&((*ipp_array)->next), ip_addr_byte_count);
-    }
-}
 
 
 static ip_tree_node_t * ip_tree_create_leaf(uint8_t * ip, uint8_t ip_addr_byte_count, uint16_t packet_len)
@@ -114,20 +79,6 @@ static ip_tree_node_t * ip_tree_create_leaf(uint8_t * ip, uint8_t ip_addr_byte_c
         new_leaf_node->stats.total_bytes = packet_len;
         // set to max value so that we check every bit
         new_leaf_node->diff_bit_index = ip_addr_byte_count * BITS_IN_BYTE - 1;
-
-
-        // calling debugging function
-        ip_node_test_t * check_res =  check_test(ip_addr, &ip_arr_g, ip_addr_byte_count);
-
-        if(ip_arr_g == NULL)
-        {
-            ip_arr_g = check_res;
-        }
-        if(check_res == NULL)
-        {
-            printf("badddddd");
-        }
-
     }
     else
     {
