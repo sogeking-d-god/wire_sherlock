@@ -60,27 +60,61 @@ typedef struct
 }ip_info_t;
 
 //TO-DO add more data and stat fields for flow table processing
+
 typedef struct
 {
-    // Layer 2 (Ethernet)
+    uint16_t l3_offset;
+    uint16_t l4_offset;
+    uint16_t payload_offset; // data start
+    uint16_t payload_len;
+    uint32_t packet_start_pointer; // packet start IN FILE ptr
+}packet_info_offsets_t;
+
+typedef struct
+{
+    struct timeval ts; // timestamp
+    uint32_t caplen; // length that was actually saved
+    uint32_t wire_len; // original packet length
+}packet_cap_info_t;
+
+typedef struct
+{
     uint8_t src_mac[ETH_ALEN];
     uint8_t dst_mac[ETH_ALEN];
     uint16_t ether_type;
+    uint8_t tci; //VLAN Tag Control Information: {PCP (Priority Code Point), DEI (Drop Eligible Indicator), VID (VLAN Identifier)}
+}packet_mac_info_t;
+
+typedef struct
+{
+    uint16_t src_port;
+    uint16_t dst_port;
+
+    uint8_t tcp_flags;
+}packet_port_info_t;
+
+typedef struct
+{
+    // Capture info
+    packet_cap_info_t cap_info;
+
+    // Layer 2 (Ethernet)
+    packet_mac_info_t mac_info;
 
     // Layer 3 (IP)
     ip_info_t ip_info;
 
     // Layer 4 (TCP/UDP)
-    uint16_t src_port;
-    uint16_t dst_port;
+    packet_port_info_t port_info;
 
-    uint32_t packet_len;
+    packet_info_offsets_t offsets;
 } packet_info_t;
 
 typedef enum {
     PROTO_HANDLER_SUCCESS = 0,
     PROTO_HANDLER_UNSUPPORTED_PROTOCOL = -1,
-    PROTO_HANDLER_CORRUPT_PACKET = -2
+    PROTO_HANDLER_CORRUPT_PACKET = -2,
+    PROTO_HANDLER_NOT_RECORDED_PACKET = -3,
 } proto_handler_return_codes_e;
 
 typedef struct
@@ -88,6 +122,7 @@ typedef struct
     proto_handler_return_codes_e ret_val;
     uint32_t header_len;
     ip_info_t ip_info;
+    uint16_t packet_len; //payload length from ip header (not including header)
 }l3_ret_data_t;
 
 /**

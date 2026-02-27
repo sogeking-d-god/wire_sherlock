@@ -14,9 +14,15 @@
 typedef struct mac_node
 {
     uint8_t mac_addr[ETH_ALEN];
+
+    struct mac_node *next;
+
     uint32_t packet_count;
     uint64_t total_bytes;
-    struct mac_node *next;
+
+    ip_tree_t *ipv4_tree;
+    ip_tree_t *ipv6_tree;
+    // messages_linked_list_t sent_messages;
 } mac_node_t;
 
 
@@ -28,16 +34,23 @@ typedef struct mac_table
 
 typedef enum
 {
+    MAC_TABLE_PROCESS_PACKET_INIT_IP_TREE_ERROR = -2,
     MAC_TABLE_PROCESS_PACKET_MALLOC_MAC_NODE_ERROR = -1,
     MAC_TABLE_PROCESS_PACKET_SUCCESS = 0,
     MAC_TABLE_PROCESS_PACKET_ADDED_NEW_NODE_SUCCESS = 1,
     MAC_TABLE_PROCESS_PACKET_ADD_TO_EXISTING_MAC_SUCCESS = 2,
-} mac_table_process_packet_return_e;
+} mac_table_process_packet_ret_code_e;
+
+typedef struct
+{
+    mac_node_t * node;
+    mac_table_process_packet_ret_code_e ret_code;
+}mac_table_proc_packet_ret_t;
+
 
 typedef struct
 {
     uint8_t mac_addr [ETH_ALEN];
-    ip_addr_t ip_addr;
     uint64_t total_length;
 } mac_table_proc_packet_data_t;
 
@@ -49,6 +62,6 @@ void mac_table_print_report(mac_table_t *table);
 
 void mac_table_free_table(mac_table_t *table);
 
-mac_table_process_packet_return_e mac_table_process_packet(mac_table_t *table, const mac_table_proc_packet_data_t data);
+mac_table_proc_packet_ret_t mac_table_process_packet(mac_table_t *table, const mac_table_proc_packet_data_t data);
 
 #endif

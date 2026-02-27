@@ -40,6 +40,7 @@ typedef enum
 {
     IP_TREE_RET_SUCCESS = 0,
     IP_TREE_RET_MALLOC_FAIL_ERROR = -1,
+    IP_TREE_RET_NULL_TREE_ERROR = -2,
 }ip_tree_ret_codes_e;
 
 typedef struct

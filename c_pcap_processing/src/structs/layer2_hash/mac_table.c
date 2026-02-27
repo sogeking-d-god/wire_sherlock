@@ -12,7 +12,8 @@ uint32_t mac_table_calculate_hash(const uint8_t *mac)
         // djb2 hash algorithm (each byte is multiplied by 33)
         hash = ((hash << DJB2_SHIFT) + hash) + mac[i];
     }
-    return hash % MAC_HASH_SIZE;
+    // faster hash % MAC_HASH_SIZE (since MAC_HASH_SIZE is a power of 2)
+    return hash & (MAC_HASH_SIZE - 1);
 }
 
 mac_table_t* mac_table_init()
@@ -58,7 +59,11 @@ void mac_table_free_table(mac_table_t *table)
             while (current_node)
             {
                 next_node = current_node->next;
+
+                ip_tree_free_tree(current_node->ipv4_tree);
+                ip_tree_free_tree(current_node->ipv6_tree);
                 free(current_node);
+
                 current_node = next_node;
             }
         }
@@ -68,9 +73,10 @@ void mac_table_free_table(mac_table_t *table)
 }
 
 
-mac_table_process_packet_return_e mac_table_process_packet(mac_table_t *table, const mac_table_proc_packet_data_t data)
+mac_table_proc_packet_ret_t mac_table_process_packet(mac_table_t *table, const mac_table_proc_packet_data_t data)
 {
-    mac_table_process_packet_return_e ret_val = MAC_TABLE_PROCESS_PACKET_SUCCESS;
+    mac_table_proc_packet_ret_t ret_struct;
+    ret_struct.ret_code = MAC_TABLE_PROCESS_PACKET_SUCCESS;
 
     uint32_t hash;
     mac_node_t *node;
@@ -91,7 +97,8 @@ mac_table_process_packet_return_e mac_table_process_packet(mac_table_t *table, c
             node = (mac_node_t*)calloc(1, MAC_NODE_SIZE);
             if (!node)
             {
-                ret_val = MAC_TABLE_PROCESS_PACKET_MALLOC_MAC_NODE_ERROR;
+                ret_struct.ret_code = MAC_TABLE_PROCESS_PACKET_MALLOC_MAC_NODE_ERROR;
+                printf("mac table malloc error!\n");
             }
             else
             {
@@ -103,18 +110,41 @@ mac_table_process_packet_return_e mac_table_process_packet(mac_table_t *table, c
                 node->next = table->buckets[hash];
                 table->buckets[hash] = node;
                 table->total_devices++;
+
+                // initing trees
+                node->ipv4_tree = ip_tree_init(IPV4_BYTES);
+                if(!node->ipv4_tree)
+                {
+                    printf("error failed to init ipv4 tree for mac\n");
+                    ret_struct.ret_code = MAC_TABLE_PROCESS_PACKET_INIT_IP_TREE_ERROR;
+                }
+                else
+                {
+                    node->ipv6_tree = ip_tree_init(IPV6_BYTES);
+                    if(!node->ipv6_tree)
+                    {
+                        printf("error failed to init ipv6 tree for mac\n");
+                        ret_struct.ret_code = MAC_TABLE_PROCESS_PACKET_INIT_IP_TREE_ERROR;
+                        ip_tree_free_tree(node->ipv4_tree);
+                        node->ipv4_tree = NULL;
+                    }
+                }
             }
-            ret_val = MAC_TABLE_PROCESS_PACKET_ADDED_NEW_NODE_SUCCESS;
+            ret_struct.ret_code = MAC_TABLE_PROCESS_PACKET_ADDED_NEW_NODE_SUCCESS;
         }
         else
         {
-            ret_val = MAC_TABLE_PROCESS_PACKET_ADD_TO_EXISTING_MAC_SUCCESS;
+            ret_struct.ret_code = MAC_TABLE_PROCESS_PACKET_ADD_TO_EXISTING_MAC_SUCCESS;
         }
-        //updating node fields
-        node->packet_count++;
-        node->total_bytes += data.total_length;
 
+        if(ret_struct.ret_code >= MAC_TABLE_PROCESS_PACKET_SUCCESS)
+        {
+            //updating node fields
+            node->packet_count++;
+            node->total_bytes += data.total_length;
+            ret_struct.node = node;
+        }
     }
-    return ret_val;
+    return ret_struct;
 
 }

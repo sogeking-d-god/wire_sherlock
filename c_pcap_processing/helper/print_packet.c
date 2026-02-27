@@ -19,8 +19,8 @@ void print_packet_summary(const packet_info_t *info) {
 
     printf("[%s] %s:%u -> %s:%u (Proto: %u, Len: %u)\n",
            (ip_info.ip_version == IP_VERSION_4 ? "IPv4" : "IPv6"),
-           src_ip_str, info->src_port,
-           dst_ip_str, info->dst_port,
+           src_ip_str, info->port_info.src_port,
+           dst_ip_str, info->port_info.dst_port,
            ip_info.ip_proto,
-           info->packet_len);
+           info->cap_info.wire_len);
 }

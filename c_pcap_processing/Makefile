@@ -47,3 +47,15 @@ $(TARGET): $(OBJS)
 
 clean:
 	rm -f $(OBJS) $(TARGET)
+
+PCAP_FILE = ../pcap_files/regular_pcap_file.pcap
+
+run: $(TARGET)
+	./$(TARGET) $(PCAP_FILE)
+
+check: $(TARGET)
+	valgrind --leak-check=full \
+	         --show-leak-kinds=all \
+	         --track-origins=yes \
+	         --verbose \
+	         ./$(TARGET) $(PCAP_FILE)
