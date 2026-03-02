@@ -35,6 +35,8 @@ typedef struct
     uint64_t end;
     double mean;
     double variance;
+    double z_score;
+    int is_anomaly; // flag: 1 if |z_score| > sensitivity
 } pelt_segment_t;
 
 /**
