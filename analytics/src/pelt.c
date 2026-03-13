@@ -58,7 +58,7 @@ static int pelt_fill_in_prefix_sums(prefix_sums_t * ps, time_series_t * elements
  *
  * @param ps Pointer to prefix sums.
  * @param F Array of optimal costs up to time t.
- * @param candidates Array of potential changepoint indices.
+ * @param candidates Array of potential changepoint indexes.
  * @param num_candidates Pointer to the number of current candidates (updated in-place).
  * @param t Current time step in the detection loop.
  */
@@ -88,7 +88,7 @@ static void pelt_update_candidates(prefix_sums_t *ps, double *F, int *candidates
  *
  * @param ps Pointer to prefix sums.
  * @param F Array of optimal costs up to time t.
- * @param candidates Array of potential changepoint indices.
+ * @param candidates Array of potential changepoint indexes.
  * @param num_candidates Number of current candidates.
  * @param t Current time step.
  * @param penalty The penalty value to discourage over-segmentation.

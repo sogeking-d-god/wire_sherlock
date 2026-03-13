@@ -43,7 +43,7 @@ int main() {
     // 3. הדפסת המקטעים שהתגלו
     printf("Detected %d segments:\n", result.count);
     for (int i = 0; i < result.count; i++) {
-        printf("Segment %d: Indices [%lu - %lu], Average: %.2f, Variance: %.2f\n",
+        printf("Segment %d: indexes [%lu - %lu], Average: %.2f, Variance: %.2f\n",
                i,
                (unsigned long)result.segments[i].start,
                (unsigned long)result.segments[i].end,

@@ -21,9 +21,9 @@ static void swap_idx(int *a, int *b)
 }
 
 /**
- * @brief Sorts a small array of indices using the Insertion Sort algorithm.
+ * @brief Sorts a small array of indexes using the Insertion Sort algorithm.
  *
- * @param indexes Array of indices to be sorted.
+ * @param indexes Array of indexes to be sorted.
  * @param n Number of elements in the chunk.
  * @param data Pointer to the original points data for value comparison.
  * @param dim The dimension index to use for sorting.
@@ -47,7 +47,7 @@ void sort_small_chunk(int *indexes, int n, points_arr_t *data, int dim)
 /**
  * @brief Partitions the array into three parts: less than, equal to, and greater than the pivot.
  *
- * @param indexes Array of indices to partition.
+ * @param indexes Array of indexes to partition.
  * @param n Number of elements in the current range.
  * @param data Pointer to the original points data.
  * @param dim The dimension to compare.
@@ -88,7 +88,7 @@ static void dutch_national_flag_partition_algo(int *indexes, int n, points_arr_t
  * @brief Core recursive function for the IntroSelect algorithm.
  * Switches between QuickSelect and Median of Medians based on recursion depth.
  *
- * @param indexes Array of indices.
+ * @param indexes Array of indexes.
  * @param n Current number of elements.
  * @param k The target rank to find.
  * @param depth_limit Remaining allowed depth before switching to Median of Medians.
