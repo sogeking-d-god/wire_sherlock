@@ -10,7 +10,7 @@
  * @param segments        List of segments found by PELT.
  * @param ps          Pointer to precalculated prefix sums for global statistics.
  * @param total_count Total number of data points.
- * @param sensitivity Z-score threshold (e.g., 3.0 for 99.7% confidence).
+ * @param sensitivity Z-score threshold
  */
 void stats_analyze_with_standard_error(pelt_segments_list_t *segments, prefix_sums_t *ps, uint64_t total_count, double sensitivity);
 
