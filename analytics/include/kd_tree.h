@@ -28,7 +28,7 @@ typedef struct kd_node_t
  * @return kd_node_t* Pointer to the newly created root of the subtree, or NULL if n <= 0
  * or memory allocation failed.
  */
-kd_node_t* kdtree_build_recursive(int *indexes, int n, int depth, points_arr_t *data);
+kd_node_t* kd_tree_build_recursive(int *indexes, int n, int depth, points_arr_t *data);
 
 /**
  * @brief Finds all points within radius 'eps' of a target point.
@@ -41,8 +41,14 @@ kd_node_t* kdtree_build_recursive(int *indexes, int n, int depth, points_arr_t *
  * @param neighbor_indexes Output array to store found indexes.
  * @param count Pointer to the current number of neighbors found.
  */
-void kd_find_neighbors(kd_node_t *root, point_t *target, double eps,
-                       int depth, points_arr_t *data,
-                       int *neighbor_indexes, int *count);
+void kd_tree_find_neighbors(kd_node_t *root, point_t *target, double eps,
+                       points_arr_t *data, int *neighbor_indexes, int *count);
+
+/**
+ * @brief Frees all nodes in the KD-Tree
+ *
+ * @param root the root of the kd tree
+ */
+void kd_tree_free(kd_node_t *root);
 
 #endif
