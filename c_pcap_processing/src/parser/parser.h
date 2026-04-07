@@ -9,6 +9,8 @@
 #include "flow_table.h"
 #include "mac_table.h"
 
+#define PCAP_FILE_HEADER_SIZE 24
+
 typedef enum
 {
     PARSER_SUCCESS = 0,
@@ -22,6 +24,6 @@ parser_return_codes_e parse_pcap_file(const char* file_path);
 
 void basic_packet_handler(uint8_t *args, const struct pcap_pkthdr *header, const uint8_t *packet);
 
-void advanced_packet_handler(uint8_t *args, const struct pcap_pkthdr *header, const uint8_t *packet);
+void advanced_packet_handler(flow_table_t *flow_table, const struct pcap_pkthdr *header, const uint8_t *packet, uint32_t file_offset);
 
 #endif

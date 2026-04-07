@@ -1,9 +1,6 @@
 #include "parser.h"
 #include "l4_handler.h"
 
-
-//TO-DO: switch from pcap_loop to pcap_next_ex to allow saving the pointer to the packet inside the file
-
 mac_table_t * mac_table_g;
 ip_tree_t * ipv4_tree_g;
 ip_tree_t * ipv6_tree_g;
@@ -13,8 +10,19 @@ parser_return_codes_e parse_pcap_file(const char* file_path)
     parser_return_codes_e ret_val = PARSER_SUCCESS;
     flow_table_t * flow_table;
 
+    struct timeval first_packet_ts = {0};
+    struct timeval last_packet_ts = {0};
+    uint64_t total_duration_sec = 0;
+
+    struct pcap_pkthdr *header;
+    const uint8_t *packet;
+    int res;
+
+    uint32_t current_file_offset = PCAP_FILE_HEADER_SIZE;
+
     char error_buffer[PCAP_ERRBUF_SIZE];
     pcap_t *handle = pcap_open_offline(file_path, error_buffer);
+
     if (! handle)
     {
         fprintf(stderr, "Could not open pcap file: %s\n", error_buffer);
@@ -27,35 +35,48 @@ parser_return_codes_e parse_pcap_file(const char* file_path)
         ipv4_tree_g = ip_tree_init(IPV4_BYTES);
         ipv6_tree_g = ip_tree_init(IPV6_BYTES);
 
-        if(!flow_table)
+        if(!flow_table || !mac_table_g || !ipv4_tree_g || !ipv6_tree_g)
         {
-            fprintf(stderr, "Could not initialize flow table\n");
-            ret_val = PARSER_FLOW_TABLE_INIT_ERROR;
-        }
-        else if(!mac_table_g)
-        {
-            fprintf(stderr, "Could not initialize mac table\n");
-            ret_val = PARSER_MAC_TABLE_INIT_ERROR;
-        }
-        else if (pcap_loop(handle, 0, advanced_packet_handler, (uint8_t *)flow_table) < 0)
-        {
-            fprintf(stderr, "Error processing packets: %s\n", pcap_geterr(handle));
-            ret_val = PARSER_PACKET_PROCESSING_ERROR;
+            fprintf(stderr, "Could not initialize one or more tables\n");
         }
         else
         {
+            while ((res = pcap_next_ex(handle, &header, &packet)) >= 0)
+            {
+
+                if (first_packet_ts.tv_sec == 0)
+                {
+                    first_packet_ts = header->ts;
+                }
+                last_packet_ts = header->ts;
+
+                advanced_packet_handler(flow_table, header, packet, current_file_offset);
+
+                // Update the file offset for the next packet (packet header + packet data)
+                current_file_offset += 16 + header->caplen;
+            }
+
+            if (res == -1)
+            {
+                fprintf(stderr, "Error reading the packets: %s\n", pcap_geterr(handle));
+                ret_val = PARSER_PACKET_PROCESSING_ERROR;
+            }
+
+            total_duration_sec = last_packet_ts.tv_sec - first_packet_ts.tv_sec;
+
+            printf("Total PCAP Duration: %lu seconds\n", total_duration_sec);
+
             flow_table_print_report(flow_table);
-            flow_table_free_table(flow_table);
-
-            // mac_table_print_report(mac_table_g);
-            mac_table_free_table(mac_table_g);
-
+            mac_table_print_report(mac_table_g);
             ip_tree_print_report(ipv4_tree_g);
-            ip_tree_free_tree(ipv4_tree_g);
-
             ip_tree_print_report(ipv6_tree_g);
-            ip_tree_free_tree(ipv6_tree_g);
+
         }
+
+        flow_table_free_table(flow_table);
+        mac_table_free_table(mac_table_g);
+        ip_tree_free_tree(ipv4_tree_g);
+        ip_tree_free_tree(ipv6_tree_g);
 
         pcap_close(handle);
 
@@ -81,10 +102,9 @@ static ip_tree_ret_codes_e parser_insert_to_mac_ip_tree(ip_addr_t ip_addr, ip_ve
     return ret_val;
 }
 
-void advanced_packet_handler(uint8_t *args, const struct pcap_pkthdr *header, const uint8_t *packet)
+void advanced_packet_handler(flow_table_t *flow_table, const struct pcap_pkthdr *header, const uint8_t *packet, uint32_t file_offset)
 {
     packet_info_t info = {0};
-    flow_table_t * flow_table = (flow_table_t *)args;
     proto_handler_return_codes_e ret_val;
     mac_table_proc_packet_data_t mac_data;
     mac_table_proc_packet_ret_t src_mac_ret;
@@ -94,6 +114,8 @@ void advanced_packet_handler(uint8_t *args, const struct pcap_pkthdr *header, co
     info.cap_info.ts = header->ts;
     info.cap_info.caplen = header->caplen;
     info.cap_info.wire_len = header->len;
+
+    info.offsets.packet_start_pointer = file_offset;
 
     ret_val = handle_l2_packet(packet, &info);
     if(ret_val == PROTO_HANDLER_SUCCESS)
@@ -136,11 +158,11 @@ void advanced_packet_handler(uint8_t *args, const struct pcap_pkthdr *header, co
             // TCP messages are handled by tcp handler
             if(flow_ret.flow_node_ptr->key.protocol == IPPROTO_TCP )
             {
-                ret_val = tcp_handler_process_flow_update(flow_ret.flow_node_ptr, &info,  packet + info.offsets.l4_offset, flow_ret.dev_idx);
+                ret_val = (int)tcp_handler_process_flow_update(flow_ret.flow_node_ptr, &info,  packet + info.offsets.l4_offset, flow_ret.dev_idx);
             }
             else
             {
-                ret_val = flow_table_insert_to_session(flow_ret.flow_node_ptr, &info, flow_ret.dev_idx);
+                ret_val = (int)flow_table_insert_to_session(flow_ret.flow_node_ptr, &info, flow_ret.dev_idx);
             }
         }
         else
