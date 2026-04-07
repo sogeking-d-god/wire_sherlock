@@ -164,16 +164,13 @@ static flow_key_t create_flow_key(packet_info_t *info, flow_table_first_device_e
     flow_key_t key;
     ip_addr_t s_addr = info->ip_info.src_ip;
     ip_addr_t d_addr = info->ip_info.dst_ip;
-    uint8_t addr_size;
     int cmp;
 
     memset(&key, 0, FLOW_KEY_SIZE);
 
-    // addr size  -1 so that the variables i and addr_size can be only 8 bits
 
     if(info->ip_info.ip_version == IP_VERSION_4)
     {
-        addr_size = IPV4_BYTES - 1;
         key.ip_type = IP_VERSION_4;
 
         //check if src addr truely is smaller than dest addres
@@ -181,7 +178,6 @@ static flow_key_t create_flow_key(packet_info_t *info, flow_table_first_device_e
     }
     else
     {
-        addr_size = IPV6_BYTES - 1;
         key.ip_type = IP_VERSION_6;
 
         //check if src addr truely is smaller than dest addres

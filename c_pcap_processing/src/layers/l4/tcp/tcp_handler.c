@@ -100,7 +100,7 @@ static void trim_message_node(message_node_t *msg, uint32_t expected)
 {
     uint32_t overlap = expected - msg->seq_num;
 
-    if (overlap < TCP_SEQ_HALF && msg->seq_num != expected)
+    if (overlap < (uint32_t)TCP_SEQ_HALF && msg->seq_num != expected)
     {
         msg->seq_num = expected;
 
@@ -125,7 +125,7 @@ static void drain_ooo_buffer(session_node_t *session, uint8_t dev_idx)
     uint32_t expected_after_new_msg;
 
     while (session->devices[dev_idx].ooo_buffer != NULL &&
-            (expected - session->devices[dev_idx].ooo_buffer->seq_num < TCP_SEQ_HALF))
+            (expected - session->devices[dev_idx].ooo_buffer->seq_num < (uint32_t)TCP_SEQ_HALF))
     {
         // detatch from out of order list
         ooo_temp = session->devices[dev_idx].ooo_buffer;
@@ -135,7 +135,7 @@ static void drain_ooo_buffer(session_node_t *session, uint8_t dev_idx)
         expected_after_new_msg = calculate_next_seq(ooo_temp);
 
         // Attach to main list if msg contains some new info
-        if((expected_after_new_msg - expected) < TCP_SEQ_HALF && expected_after_new_msg != expected)
+        if((expected_after_new_msg - expected) < (uint32_t)TCP_SEQ_HALF && expected_after_new_msg != expected)
         {
             trim_message_node(ooo_temp, expected);
             session->messages.tail->next = ooo_temp;
@@ -161,7 +161,6 @@ flow_table_process_packet_return_e tcp_handler_process_flow_update(flow_node_t *
     struct tcphdr *tcp = (struct tcphdr *)tcp_data;
     uint32_t seq, ack, expected, expected_after_new_msg;
     uint32_t payload_len, control;
-    uint32_t overlap;
     message_node_t *msg = NULL;
     session_node_t *session;
 
@@ -209,8 +208,8 @@ flow_table_process_packet_return_e tcp_handler_process_flow_update(flow_node_t *
                     session->devices[dev_idx].data.next_expected_seq = expected_after_new_msg;
                 }
                 // in order message in flow
-                else if (expected - seq < TCP_SEQ_HALF &&
-                        (expected_after_new_msg - expected) < TCP_SEQ_HALF &&
+                else if (expected - seq < (uint32_t)TCP_SEQ_HALF &&
+                        (expected_after_new_msg - expected) < (uint32_t)TCP_SEQ_HALF &&
                         expected_after_new_msg != expected)
                 {
                     trim_message_node(msg, expected);
@@ -223,7 +222,7 @@ flow_table_process_packet_return_e tcp_handler_process_flow_update(flow_node_t *
                     drain_ooo_buffer(session,dev_idx);
                 }
                 // Future packet - store in out of order sorted buffer
-                else if (seq - expected < TCP_SEQ_HALF)
+                else if (seq - expected < (uint32_t)TCP_SEQ_HALF)
                 {
                     insert_sorted_ooo(session, msg, dev_idx);
                 }
@@ -269,7 +268,6 @@ proto_handler_return_codes_e handle_tcp_packet(const uint8_t *data, packet_info_
     proto_handler_return_codes_e ret_val = PROTO_HANDLER_SUCCESS;
     uint8_t header_len;
     struct tcphdr *tcp_header;
-    uint32_t packet_len = info->offsets.l4_offset + info->offsets.payload_len;
 
     info->offsets.payload_offset = info->offsets.l4_offset + TCP_HEADER_MIN_LEN;
 
@@ -340,7 +338,7 @@ static void insert_sorted_ooo(session_node_t *session, message_node_t *new_msg, 
         *curr = new_msg;
     }
     // message that has the same seq but is longer
-    else if (new_msg_next_seq - curr_msg_next_seq < TCP_SEQ_HALF &&
+    else if (new_msg_next_seq - curr_msg_next_seq < (uint32_t)TCP_SEQ_HALF &&
             new_msg_next_seq != curr_msg_next_seq)
     {
         new_msg->next = (*curr)->next;
