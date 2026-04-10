@@ -4,6 +4,7 @@ import json
 import os
 import time
 import uuid
+import struct
 
 import ipc_config
 
@@ -39,19 +40,6 @@ class WireSherlockSession:
         self.sock.connect(self.socket_path)
         print("[Python] Successfully connected to C Engine UDS!")
 
-    def send_command(self, cmd_string, payload=None):
-        if not self.sock:
-            return None
-
-        msg = {"cmd": cmd_string}
-        if payload:
-            msg.update(payload)
-
-        self.sock.sendall(json.dumps(msg).encode('utf-8'))
-
-        response_bytes = self.sock.recv(ipc_config.BUFFER_SIZE)
-        return json.loads(response_bytes.decode('utf-8'))
-
     def close(self):
         print("[Python] Sending EXIT command to C Engine...")
         self.send_command(ipc_config.CMD_EXIT)
@@ -59,14 +47,52 @@ class WireSherlockSession:
         self.c_process.wait()
         print("[Python] Session closed gracefully.")
 
+    def _recvall(self, n):
+        data = bytearray()
+        while len(data) < n:
+            packet = self.sock.recv(n - len(data))
+            if not packet:
+                return None
+            data.extend(packet)
+        return data
+
+    def send_command(self, cmd_string, payload=None):
+        if not self.sock: return None
+
+        msg = {"cmd": cmd_string}
+        if payload: msg.update(payload)
+
+        msg_bytes = json.dumps(msg).encode('utf-8')
+
+        # send the length of the message first (4 bytes, Network byte order)
+        msg_length = len(msg_bytes)
+        self.sock.sendall(struct.pack('!I', msg_length))
+
+        self.sock.sendall(msg_bytes)
+
+        # receive the length of the response first
+        raw_msglen = self._recvall(4)
+        if not raw_msglen: return None
+        resp_len = struct.unpack('!I', raw_msglen)[0]
+
+        resp_bytes = self._recvall(resp_len)
+        return json.loads(resp_bytes.decode('utf-8'))
+
 if __name__ == "__main__":
-    # Simple test
     session = WireSherlockSession("test_capture.pcap")
     try:
         session.start_engine()
 
         response = session.send_command(ipc_config.CMD_PING)
-        print(f"[Python] Response from C: {response}")
+        print(f"[Python] Ping Response: {response}")
+
+        payload = {
+            "bin_size": 100,
+            "target_ips": ["192.168.1.1", "10.0.0.5"],
+            "features": [1, 5, 8, 12]
+        }
+        response = session.send_command("fake_command_test", payload)
+        print(f"[Python] Fake Command Response: {response}")
 
     finally:
         session.close()

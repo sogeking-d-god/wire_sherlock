@@ -1,8 +1,8 @@
-# AUTO-GENERATED IPC CONFIG FILE.
+# AUTO-GENERATED FILE. DO NOT EDIT.
 
-BUFFER_SIZE = 4096
 MAX_BACKLOG = 5
-CMD_PING = "ping"
-CMD_EXIT = "exit"
-STATUS_SUCCESS = "success"
-STATUS_ERROR = "error"
+CMD_PING = "cmd_ping"
+CMD_EXIT = "cmd_exit"
+CMD_START_ANALYSIS = "cmd_start"
+STATUS_SUCCESS = "status_success"
+STATUS_ERROR = "status_error"
