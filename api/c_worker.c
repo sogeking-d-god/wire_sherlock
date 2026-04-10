@@ -56,24 +56,18 @@ cJSON* receive_json(int socket_fd)
     }
     return json_obj;
 }
-
-/**
- * @brief Sends a JSON response to the client
- *
- * @param client_sock  The socket file descriptor for the client connection
- * @param status       The status message
- * @param message      The detailed message
- */
-void send_response(int client_sock, const char *status, const char *message)
+void send_api_response(int client_sock, const char *status, cJSON *data_body)
 {
-    cJSON *resp = cJSON_CreateObject();
-    cJSON_AddStringToObject(resp, "status", status);
-    cJSON_AddStringToObject(resp, "message", message);
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "status", status);
 
-    // קריאה ל-Wrapper החדש שאורז את האורך כמו שצריך!
-    send_json(client_sock, resp);
+    if (data_body)
+    {
+        cJSON_AddItemToObject(root, "data", data_body);
+    }
 
-    cJSON_Delete(resp);
+    send_json(client_sock, root);
+    cJSON_Delete(root);
 }
 
 int main(int argc, char *argv[])
@@ -137,16 +131,16 @@ int main(int argc, char *argv[])
             {
                 if (strcmp(cmd->valuestring, CMD_PING) == 0)
                 {
-                    send_response(client_sock, STATUS_SUCCESS, "Pong! Length-Prefixed Worker is alive.");
+                    send_api_response(client_sock, STATUS_SUCCESS, cJSON_CreateString("Pong! Length-Prefixed Worker is alive."));
                 }
                 else if (strcmp(cmd->valuestring, CMD_EXIT) == 0)
                 {
-                    send_response(client_sock, STATUS_SUCCESS, "Shutting down.");
+                    send_api_response(client_sock, STATUS_SUCCESS, cJSON_CreateString("Shutting down."));
                     running = 0;
                 }
                 else
                 {
-                    send_response(client_sock, STATUS_ERROR, "Unknown command.");
+                    send_api_response(client_sock, STATUS_ERROR, cJSON_CreateString("Unknown command."));
                 }
             }
             cJSON_Delete(request);
