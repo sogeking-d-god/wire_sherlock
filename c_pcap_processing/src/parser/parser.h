@@ -20,10 +20,27 @@ typedef enum
     PARSER_MAC_TABLE_INIT_ERROR = -4,
 } parser_return_codes_e;
 
-parser_return_codes_e parse_pcap_file(const char* file_path);
+typedef struct file_analysis_context_s
+{
+    // Parsing Data
+    flow_table_t *flow_table;
+    mac_table_t  *mac_table;
+    ip_tree_t    *ipv4_tree;
+    ip_tree_t    *ipv6_tree;
+
+    // Meta-Data of the PCAP
+    struct timeval start_ts;
+    struct timeval end_ts;
+    uint64_t total_packets;
+
+    // Configuration from Python
+    uint32_t bin_size_ms;
+} file_analysis_context_t;
+
+parser_return_codes_e parse_pcap_file(file_analysis_context_t *core, const char* file_path);
 
 void basic_packet_handler(uint8_t *args, const struct pcap_pkthdr *header, const uint8_t *packet);
 
-void advanced_packet_handler(flow_table_t *flow_table, const struct pcap_pkthdr *header, const uint8_t *packet, uint32_t file_offset);
+void advanced_packet_handler(file_analysis_context_t *core, const struct pcap_pkthdr *header, const uint8_t *packet, uint32_t file_offset);
 
 #endif

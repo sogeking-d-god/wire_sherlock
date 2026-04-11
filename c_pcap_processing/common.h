@@ -144,8 +144,4 @@ typedef struct ip_tree ip_tree_t;
 #include "flow_table.h"
 #include "ip_tree.h"
 
-extern mac_table_t * mac_table_g;
-extern ip_tree_t * ipv4_tree_g;
-extern ip_tree_t * ipv6_tree_g;
-
 #endif

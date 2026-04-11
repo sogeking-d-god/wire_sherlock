@@ -6,7 +6,7 @@ import time
 import uuid
 import struct
 
-import ipc_config
+from config import ipc_config
 
 class WireSherlockSession:
     def __init__(self, pcap_path):
@@ -23,7 +23,7 @@ class WireSherlockSession:
 
         # Creating the subprocess for the C engine, passing the pcap path and socket path as arguments
         self.c_process = subprocess.Popen(
-            ["./c_worker", "--pcap", self.pcap_path, "--socket", self.socket_path],
+            ["./engine/core/c_worker", "--pcap", self.pcap_path, "--socket", self.socket_path],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
@@ -41,11 +41,16 @@ class WireSherlockSession:
         print("[Python] Successfully connected to C Engine UDS!")
 
     def close(self):
-        print("[Python] Sending EXIT command to C Engine...")
-        self.send_command(ipc_config.CMD_EXIT)
-        self.sock.close()
-        self.c_process.wait()
-        print("[Python] Session closed gracefully.")
+        if hasattr(self, 'sock') and self.sock is not None:
+            try:
+                self.send_command(ipc_config.CMD_EXIT)
+                self.sock.close()
+                print("[Python] Session closed gracefully.")
+            # If the C engine has already terminated or the socket is gone, just ignore any exceptions here
+            except Exception:
+                pass
+        if hasattr(self, 'c_process') and self.c_process is not None:
+            self.c_process.terminate()
 
     def _recvall(self, n):
         data = bytearray()
@@ -93,6 +98,9 @@ if __name__ == "__main__":
         }
         response = session.send_command("fake_command_test", payload)
         print(f"[Python] Fake Command Response: {response}")
+
+        response = session.send_command(ipc_config.CMD_START_ANALYSIS, None)
+        print(f"[Python] Start Analysis Response: {response}")
 
     finally:
         session.close()
