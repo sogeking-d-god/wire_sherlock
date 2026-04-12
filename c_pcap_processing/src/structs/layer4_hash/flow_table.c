@@ -58,7 +58,6 @@ const char* get_tcp_state_str(session_node_t *sess, uint8_t protocol)
     return "ACTIVE";
 }
 
-
 void flow_table_print_report(flow_table_t *table)
 {
     if (!table) return;
@@ -274,7 +273,6 @@ flow_table_process_packet_ret_t flow_table_process_packet(flow_table_t *table, p
     return ret_struct;
 }
 
-
 flow_table_process_packet_return_e flow_table_insert_to_session(flow_node_t * flow_node, packet_info_t * info, flow_table_first_device_e src_dev)
 {
     flow_table_process_packet_return_e ret_code = FLOW_TABLE_PROCESS_PACKET_SUCCESS;
@@ -355,4 +353,22 @@ flow_table_process_packet_return_e flow_table_insert_to_session(flow_node_t * fl
         }
     }
     return ret_code;
+}
+
+void flow_table_iterate(flow_table_t *table, flow_callback_fn callback, void *context)
+{
+    flow_node_t *curr, *next;
+    if(table && callback)
+    {
+        for (int i = 0; i < FLOW_HASH_SIZE; i++)
+        {
+            curr = table->buckets[i];
+            while (curr)
+            {
+                next = curr->next;
+                callback(curr, context);
+                curr = next;
+            }
+        }
+    }
 }

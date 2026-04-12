@@ -9,6 +9,7 @@
 
 #include "ipc_config.h"
 #include "parser.h"
+#include "parser_wrapper.h"
 
 void send_json(int socket_fd, cJSON *json_obj)
 {
@@ -72,6 +73,30 @@ void send_api_response(int client_sock, const char *status, cJSON *data_body)
     cJSON_Delete(root);
 }
 
+static void core_free(file_analysis_context_t *core)
+{
+    if (core)
+    {
+        if (core->flow_table)
+        {
+            flow_table_free_table(core->flow_table);
+        }
+        if (core->mac_table)
+        {
+            mac_table_free_table(core->mac_table);
+        }
+        if (core->ipv4_tree)
+        {
+            ip_tree_free_tree(core->ipv4_tree);
+        }
+        if (core->ipv6_tree)
+        {
+            ip_tree_free_tree(core->ipv6_tree);
+        }
+        free(core);
+    }
+}
+
 int main(int argc, char *argv[])
 {
     char *pcap_path = NULL;
@@ -81,6 +106,8 @@ int main(int argc, char *argv[])
     struct sockaddr_un address;
 
     file_analysis_context_t *core = NULL;
+    parser_return_codes_e parse_result;
+    cJSON *results_json;
 
     int running = 1;
 
@@ -131,23 +158,34 @@ int main(int argc, char *argv[])
             {
                 if (strcmp(cmd->valuestring, CMD_START_ANALYSIS) == 0)
                 {
+                    if (core)
+                    {
+                        core_free(core);
+                    }
                     core = malloc(sizeof(file_analysis_context_t));
                     memset(core, 0, sizeof(file_analysis_context_t));
 
                     // temp direct call to parse, will be changed to call to parser wrapper that will return JSON and handle the retval codes
-                    parse_pcap_file(core, pcap_path);
+                    parse_result = parse_pcap_file(core, pcap_path);
 
-                    // place holder for response after parsing is done, will be extended to include more details about the parsing results
-                    send_api_response(client_sock, STATUS_SUCCESS, cJSON_CreateString("Parsing complete. Ready for tools."));
+                    if(parse_result == PARSER_SUCCESS)
+                    {
+                        printf("[C_WORKER] Parsing complete. Starting JSON wrap...\n");
+
+                        results_json = wrap_parser_results(core);
+
+                        printf("[C_WORKER] JSON wrap finished successfully. Sending to Python...\n");
+
+                        send_api_response(client_sock, STATUS_SUCCESS, results_json);
+
+                        printf("[C_WORKER] Response sent!\n");
+                    }
+                    else
+                    {
+                        results_json = cJSON_CreateString("Error during parsing.");
+                        send_api_response(client_sock, STATUS_ERROR, results_json);
+                    }
                 }
-
-                // future activation of pelt tool
-
-                // else if (strcmp(cmd->valuestring, "RUN_PELT") == 0)
-                // {
-                //     cJSON *results = run_pelt_wrapper(core, request);
-                //     send_api_response(client_sock, STATUS_SUCCESS, results);
-                // }
 
                 else if (strcmp(cmd->valuestring, CMD_PING) == 0)
                 {
@@ -155,6 +193,8 @@ int main(int argc, char *argv[])
                 }
                 else if (strcmp(cmd->valuestring, CMD_EXIT) == 0)
                 {
+                    core_free(core);
+
                     send_api_response(client_sock, STATUS_SUCCESS, cJSON_CreateString("Shutting down."));
                     running = 0;
                 }

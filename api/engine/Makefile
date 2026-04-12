@@ -27,6 +27,7 @@ CFLAGS = -Wall -Wextra -Wpedantic -Wshadow -g \
          -I$(SRC_DIR)/structs/layer4_hash \
          -I$(SRC_DIR)/structs/layer2_hash \
          -I$(SRC_DIR)/structs/patricia_tree \
+         -I$(WRAPPERS_DIR)/parsing \
          -D_DEFAULT_SOURCE
 
 LDFLAGS = -lpcap -lcjson
@@ -45,7 +46,8 @@ SRCS = $(CORE_DIR)/c_worker.c \
        $(PCAP_ENGINE_DIR)/helper/print_packet.c \
        $(PCAP_ENGINE_DIR)/src/structs/layer4_hash/flow_table.c \
        $(PCAP_ENGINE_DIR)/src/structs/layer2_hash/mac_table.c \
-       $(PCAP_ENGINE_DIR)/src/structs/patricia_tree/ip_tree.c
+       $(PCAP_ENGINE_DIR)/src/structs/patricia_tree/ip_tree.c \
+       $(WRAPPERS_DIR)/parsing/parser_wrapper.c
 
 OBJS = $(SRCS:.c=.o)
 

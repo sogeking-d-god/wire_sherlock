@@ -34,12 +34,12 @@ parser_return_codes_e parse_pcap_file(file_analysis_context_t *core, const char*
         {
             while ((res = pcap_next_ex(handle, &header, &packet)) >= 0)
             {
-
                 if (core->total_packets == 0)
                 {
                     core->start_ts = header->ts;
                 }
                 core->end_ts = header->ts;
+                core->total_packets++;
 
                 advanced_packet_handler(core, header, packet, current_file_offset);
 
@@ -57,13 +57,7 @@ parser_return_codes_e parse_pcap_file(file_analysis_context_t *core, const char*
             mac_table_print_report(core->mac_table);
             ip_tree_print_report(core->ipv4_tree);
             ip_tree_print_report(core->ipv6_tree);
-
         }
-
-        flow_table_free_table(core->flow_table);
-        mac_table_free_table(core->mac_table);
-        ip_tree_free_tree(core->ipv4_tree);
-        ip_tree_free_tree(core->ipv6_tree);
 
         pcap_close(handle);
 

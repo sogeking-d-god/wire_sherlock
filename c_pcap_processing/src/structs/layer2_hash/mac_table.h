@@ -3,6 +3,7 @@
 
 #include "common.h"
 
+#define MAC_ADDR_SIZE 18
 #define MAC_HASH_SIZE 1024
 #define MAC_HASH_CONST 5381
 #define DJB2_SHIFT 5
@@ -63,5 +64,8 @@ void mac_table_print_report(mac_table_t *table);
 void mac_table_free_table(mac_table_t *table);
 
 mac_table_proc_packet_ret_t mac_table_process_packet(mac_table_t *table, const mac_table_proc_packet_data_t data);
+
+typedef void (*mac_node_callback_fn)(mac_node_t *node, void *context);
+void mac_table_iterate(mac_table_t *table, mac_node_callback_fn callback, void *context);
 
 #endif

@@ -24,7 +24,7 @@ typedef struct ip_tree_node
     ip_tree_stats_t stats;
     uint8_t * ip;
     struct ip_tree_node *children[2];
-    uint8_t diff_bit_index : IP_TREE_IPV6_BITS_COUNT_IN_BITS;
+    uint8_t diff_bit_index;
 } ip_tree_node_t;
 
 
@@ -32,7 +32,7 @@ typedef struct ip_tree
 {
     ip_tree_node_t *root;
     uint32_t total_unique_ips;
-    // amount of bytes in ip addr -1
+    // 4 for ipv4, 16 for ipv6
     uint8_t ip_addr_byte_count;
 } ip_tree_t;
 
@@ -43,12 +43,12 @@ typedef enum
     IP_TREE_RET_NULL_TREE_ERROR = -2,
 }ip_tree_ret_codes_e;
 
-typedef struct
-{
-    uint8_t bit_val : 1;
-    uint8_t bit_index : IP_TREE_IPV6_BITS_COUNT_IN_BITS;
-    boolean_e bit_found_flag;
-}ip_tree_diff_bit_ret_t;
+    typedef struct
+    {
+        uint8_t bit_val : 1;
+        uint8_t bit_index;
+        boolean_e bit_found_flag;
+    }ip_tree_diff_bit_ret_t;
 
 typedef struct
 {
@@ -56,12 +56,13 @@ typedef struct
     uint8_t bits : 3;
 }ip_tree_diff_bit_bit_range_t;
 
-
-
-
 ip_tree_ret_codes_e ip_tree_insert(ip_tree_t *tree, uint8_t * ip, uint32_t packet_len);
 ip_tree_t* ip_tree_init(uint8_t ip_addr_byte_count);
 void ip_tree_free_tree(ip_tree_t* tree);
 void ip_tree_print_report(ip_tree_t *tree);
+
+
+typedef void (*ip_node_callback_fn)(ip_tree_node_t *node, ip_version_e ip_addr_type, void *context);
+void ip_tree_iterate(ip_tree_t *tree, ip_node_callback_fn callback, void *context);
 
 #endif

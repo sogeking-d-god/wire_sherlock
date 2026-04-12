@@ -146,5 +146,23 @@ mac_table_proc_packet_ret_t mac_table_process_packet(mac_table_t *table, const m
         }
     }
     return ret_struct;
+}
 
+
+void mac_table_iterate(mac_table_t *table, mac_node_callback_fn callback, void *context)
+{
+    mac_node_t *curr, *next;
+    if(table && callback)
+    {
+        for (int i = 0; i < MAC_HASH_SIZE; i++)
+        {
+            curr = table->buckets[i];
+            while (curr)
+            {
+                next = curr->next;
+                callback(curr, context);
+                curr = next;
+            }
+        }
+    }
 }

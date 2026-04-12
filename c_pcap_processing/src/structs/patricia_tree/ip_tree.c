@@ -254,3 +254,30 @@ void ip_tree_print_report(ip_tree_t *tree)
 
     printf("--------------------------------------------\n");
 }
+
+
+static void ip_tree_iterate_recursive(ip_tree_node_t *node, ip_node_callback_fn callback, ip_version_e ip_addr_type, void *context)
+{
+    if (node == NULL) return;
+
+    // Check if it's a leaf node (no children)
+    if (node->children[0] == NULL)
+    {
+        callback(node, ip_addr_type, context);
+    }
+    else
+    {
+        ip_tree_iterate_recursive(node->children[0], callback, ip_addr_type, context);
+        ip_tree_iterate_recursive(node->children[1], callback, ip_addr_type, context);
+    }
+}
+
+void ip_tree_iterate(ip_tree_t *tree, ip_node_callback_fn callback, void *context)
+{
+    int ip_addr_type;
+    if (tree && callback)
+    {
+        ip_addr_type = (tree->ip_addr_byte_count == 4) ? IP_VERSION_4 : IP_VERSION_6;
+        ip_tree_iterate_recursive(tree->root, callback, ip_addr_type, context);
+    }
+}

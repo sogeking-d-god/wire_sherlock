@@ -10,7 +10,7 @@ from config import ipc_config
 
 class WireSherlockSession:
     def __init__(self, pcap_path):
-        self.pcap_path = pcap_path
+        self.pcap_full_path = os.path.abspath(pcap_path)
         # Creates a unique session ID and corresponding socket path for this session
         self.session_id = uuid.uuid4().hex[:8]
         self.socket_path = f"/tmp/wiresherlock_{self.session_id}.sock"
@@ -18,14 +18,14 @@ class WireSherlockSession:
         self.sock = None
 
     def start_engine(self):
-        print(f"[Python] Starting C Engine for {self.pcap_path}...")
+        print(f"[Python] Starting C Engine for {self.pcap_full_path}...")
         print(f"[Python] Allocated Socket: {self.socket_path}")
 
         # Creating the subprocess for the C engine, passing the pcap path and socket path as arguments
         self.c_process = subprocess.Popen(
-            ["./engine/core/c_worker", "--pcap", self.pcap_path, "--socket", self.socket_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            ["./engine/core/c_worker", "--pcap", self.pcap_full_path, "--socket", self.socket_path],
+            stdout=None,
+            stderr=None
         )
 
         # Wait a moment for the C engine to initialize and create the socket
@@ -84,7 +84,7 @@ class WireSherlockSession:
         return json.loads(resp_bytes.decode('utf-8'))
 
 if __name__ == "__main__":
-    session = WireSherlockSession("test_capture.pcap")
+    session = WireSherlockSession("../pcap_files/regular_pcap_file.pcap")
     try:
         session.start_engine()
 
@@ -100,7 +100,13 @@ if __name__ == "__main__":
         print(f"[Python] Fake Command Response: {response}")
 
         response = session.send_command(ipc_config.CMD_START_ANALYSIS, None)
-        print(f"[Python] Start Analysis Response: {response}")
 
+        if response is None:
+            print("[Python] CRITICAL ERROR: C Engine crashed or closed the connection without responding!")
+        elif response.get('status') == 'status_success':
+            print("Full Analysis Results:")
+            print(json.dumps(response['data'], indent=4))
+        else:
+            print(f"[Python] Analysis Failed! Reason: {response.get('data')}")
     finally:
         session.close()

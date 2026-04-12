@@ -156,4 +156,9 @@ char* get_ip_str(const ip_addr_t *ip, ip_version_e ver, char * buf, size_t bufle
 const char* get_tcp_state_str(session_node_t *sess, uint8_t protocol);
 flow_table_process_packet_return_e flow_table_insert_to_session(flow_node_t * flow_node, packet_info_t * info, flow_table_first_device_e src_dev);
 
+
+typedef void (*flow_callback_fn)(flow_node_t *node, void *context);
+
+void flow_table_iterate(flow_table_t *table, flow_callback_fn callback, void *context);
+
 #endif
