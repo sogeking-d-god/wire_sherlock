@@ -73,30 +73,6 @@ void send_api_response(int client_sock, const char *status, cJSON *data_body)
     cJSON_Delete(root);
 }
 
-static void core_free(file_analysis_context_t *core)
-{
-    if (core)
-    {
-        if (core->flow_table)
-        {
-            flow_table_free_table(core->flow_table);
-        }
-        if (core->mac_table)
-        {
-            mac_table_free_table(core->mac_table);
-        }
-        if (core->ipv4_tree)
-        {
-            ip_tree_free_tree(core->ipv4_tree);
-        }
-        if (core->ipv6_tree)
-        {
-            ip_tree_free_tree(core->ipv6_tree);
-        }
-        free(core);
-    }
-}
-
 int main(int argc, char *argv[])
 {
     char *pcap_path = NULL;
@@ -214,3 +190,25 @@ int main(int argc, char *argv[])
 
     return 0;
 }
+
+
+// int main() {
+//     printf("--- STARTING DRY RUN TEST ---\n");
+
+//     // 1. הקצאת ה-core
+//     file_analysis_context_t *core = calloc(1, sizeof(file_analysis_context_t));
+//     if (!core) {
+//         printf("Failed to allocate core\n");
+//         return 1;
+//     }
+
+//     // 2. הרצת הפארסר על קובץ pcap אמיתי שיש לך בתיקייה (שים לב לשם הקובץ!)
+//     // שנה את "test.pcap" לשם של הקובץ שלך אם הוא שונה
+//     parse_pcap_file(core, "../../pcap_files/regular_pcap_file.pcap");
+
+//     // 3. שחרור הזיכרון המיוחל
+//     core_free(core);
+
+//     printf("--- DRY RUN FINISHED ---\n");
+//     return 0;
+// }

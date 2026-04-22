@@ -1,5 +1,16 @@
 #include "time_series.h"
 
+static metric_index_e all_metrics_static[] = {METRIC_PACKET_COUNT, METRIC_BYTE_COUNT, METRIC_SYN_FLAG_COUNT, METRIC_FIN_FLAG_COUNT, METRIC_RST_FLAG_COUNT};
+
+const metric_fn METRIC_REGISTRY[METRICS_COUNT] =
+{
+    metric_packet_count,   // Index 0
+    metric_byte_count,     // Index 1
+    metric_syn_flag_count, // Index 2
+    metric_fin_flag_count, // Index 3
+    metric_rst_flag_count  // Index 4
+};
+
 /**
  * @brief A helper function to calculate the appropriate bin index for a given packet timestamp based on the start timestamp and bin size.
  *
@@ -36,16 +47,13 @@ bin_manager_ret_e bin_manager_init(bin_manager_t * mgr)
         mgr->total_bins = calculate_bin_index(mgr->end_ts, mgr->start_ts, mgr->bin_size) + 1;
 
         // If metrics are not set, use all metrics by default
-        if(mgr->metrics_count <= 0 && !mgr->metrics)
+        if(mgr->metrics_count <= 0)
         {
             mgr->metrics_count = METRICS_COUNT;
-            mgr->metrics = ALL_METRICS;
-        }
-
-        else if (mgr->metrics_count > 0 || mgr->metrics)
-        {
-            printf("error: bin_manager_init received invalid metrics configuration. (metrics_count and metrics array conflicting)\n");
-            ret_val = BIN_MANAGER_PARAMS_ERROR;
+            for (int i = 0; i < METRICS_COUNT; i++)
+            {
+                mgr->metrics[i] = all_metrics_static[i];
+            }
         }
 
         for (int i = 0; i < mgr->metrics_count && ret_val == BIN_MANAGER_SUCCESS; i++)
@@ -60,15 +68,15 @@ bin_manager_ret_e bin_manager_init(bin_manager_t * mgr)
                 ret_val = BIN_MANAGER_MALLOC_ERROR;
             }
         }
-        return ret_val;
     }
+    return ret_val;
 }
 
 bin_manager_ret_e bin_manager_process_packet(bin_manager_t *mgr, const packet_info_t *pkt)
 {
     bin_manager_ret_e ret_val = BIN_MANAGER_SUCCESS;
     long idx;
-    if(!mgr || !pkt || mgr->metrics_count <= 0 || !mgr->metrics)
+    if(!mgr || !pkt || mgr->metrics_count <= 0)
     {
         printf("Error: bin_manager_process_packet received invalid parameters.\n");
         ret_val = BIN_MANAGER_PARAMS_ERROR;
@@ -94,16 +102,36 @@ bin_manager_ret_e bin_manager_process_packet(bin_manager_t *mgr, const packet_in
 
 void bin_manager_free_bins(bin_manager_t *mgr)
 {
-    for (int i = 0; i < mgr->metrics_count; i++)
+    if (mgr)
     {
-        free(mgr->bins[i]);
-        mgr->bins[i] = NULL;
+        for (int i = 0; i < mgr->metrics_count; i++)
+        {
+            free(mgr->bins[i]);
+            mgr->bins[i] = NULL;
+        }
     }
 }
 
 void bin_manager_free(bin_manager_t *mgr)
 {
     bin_manager_free_bins(mgr);
-    free(mgr->metrics);
-    mgr->metrics = NULL;
+    free(mgr);
+}
+
+bin_manager_ret_e bin_manager_process_packet_block(bin_manager_t *mgr, const packet_block_t *block)
+{
+    bin_manager_ret_e ret_val = BIN_MANAGER_SUCCESS;
+    if (!mgr || !block)
+    {
+        printf("Error: bin_manager_process_packet_block received NULL pointer.\n");
+        ret_val = BIN_MANAGER_PARAMS_ERROR;
+    }
+    else
+    {
+        for (uint32_t i = 0; i < block->packet_count && ret_val == BIN_MANAGER_SUCCESS; i++)
+        {
+            ret_val = bin_manager_process_packet(mgr, &block->packets[i]);
+        }
+    }
+    return ret_val;
 }

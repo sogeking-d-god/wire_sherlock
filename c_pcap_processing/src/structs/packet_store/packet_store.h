@@ -23,7 +23,7 @@ typedef struct packet_block
     packet_info_t *packets;
 } packet_block_t;
 
-typedef struct
+typedef struct packet_store
 {
     packet_block_t **block_index; // an array of pointers to packet blocks, sorted by start_ts
     uint32_t total_blocks;
@@ -38,6 +38,9 @@ typedef enum
     PACKET_STORE_ERROR_ALLOC_FAIL = -2,
     PACKET_STORE_ERROR_MEMALIGN_FAIL = -3
 } packet_store_status_e;
+
+typedef void (*packet_block_callback_fn)(packet_block_t *block, void *context);
+typedef void (*packet_info_callback_fn)(packet_info_t *pkt, void *context);
 
 /**
  * @brief Initializes a new packet store.
@@ -68,7 +71,6 @@ void packet_store_free(packet_store_t *store);
 void packet_store_calculate_message_count_in_block();
 
 
-typedef void (*packet_block_callback_fn)(packet_block_t *block, void *context);
 
 /**
  * @brief Compares two time values.
@@ -136,7 +138,7 @@ void packet_store_itirate_blocks(packet_store_t *store, packet_block_callback_fn
  * @param callback a function pointer to the callback function to be called for each packet
  * @param context a pointer to any additional context that should be passed to the callback function
  */
-void packet_store_itirate_messages_in_block(packet_block_t *block, packet_block_callback_fn callback, void *context);
+void packet_store_itirate_messages_in_block(packet_block_t *block, packet_info_callback_fn callback, void *context);
 
 /**
  * @brief Iterates over all packets in the store that fall within a specified time range (between start_time and end_time) and calls the provided callback function for each packet, passing the packet and the context as arguments to the callback. The function first finds the block that contains the start_time, then iterates through the blocks and packets until it goes past the end_time, calling the callback for each packet in the range.
@@ -147,6 +149,24 @@ void packet_store_itirate_messages_in_block(packet_block_t *block, packet_block_
  * @param callback a function pointer to the callback function to be called for each packet in the range
  * @param context a pointer to any additional context that should be passed to the callback function
  */
-void packet_store_itirate_packets_in_time_range(packet_store_t *store, struct timeval start_time, struct timeval end_time, packet_block_callback_fn callback, void *context);
+void packet_store_itirate_packets_in_time_range(packet_store_t *store, struct timeval start_time, struct timeval end_time, packet_info_callback_fn callback, void *context);
+/**
+ * @brief The function iterates over all packets in the packet store and calls the provided callback function for each packet, passing the packet and the context as arguments to the callback. The function goes through each block in the store and then through each packet in the block, calling the callback for each packet.
+ *
+ * @param store  a pointer to the packet store
+ * @param callback a function pointer to the callback function to be called for each packet
+ * @param context a pointer to any additional context that should be passed to the callback function
+ */
+void packet_store_itirate_all_packets(packet_store_t *store, packet_info_callback_fn callback, void *context);
+
+/**
+ * @brief A callback function for processing packets in a time series. (activates bin_manager_process_packet)
+ *
+ * @param pkt a pointer to the packet info
+ * @param context a pointer to bin_manager_t
+ */
+void packet_store_time_series_callback_fn(packet_info_t *pkt, void *context);
+
+void packet_store_debug_print(packet_store_t *store);
 
 #endif

@@ -1,9 +1,25 @@
 #include "parser.h"
 #include "l4_handler.h"
+#include "time_series.h"
+
+void init_core(file_analysis_context_t *core)
+{
+    *core = (file_analysis_context_t){0};
+
+    core->flow_table = flow_table_init();
+    core->mac_table = mac_table_init();
+    core->ipv4_tree = ip_tree_init(IPV4_BYTES);
+    core->ipv6_tree = ip_tree_init(IPV6_BYTES);
+    core->packet_store = packet_store_init();
+    core->bin_manager = (bin_manager_t*)calloc(1, sizeof(bin_manager_t));
+}
+
 
 parser_return_codes_e parse_pcap_file(file_analysis_context_t *core, const char* file_path)
 {
     parser_return_codes_e ret_val = PARSER_SUCCESS;
+
+    bin_manager_ret_e bin_mgr_ret;
 
     struct pcap_pkthdr *header;
     const uint8_t *packet;
@@ -21,12 +37,8 @@ parser_return_codes_e parse_pcap_file(file_analysis_context_t *core, const char*
     }
     else
     {
-        core->flow_table = flow_table_init();
-        core->mac_table  = mac_table_init();
-        core->ipv4_tree  = ip_tree_init(IPV4_BYTES);
-        core->ipv6_tree  = ip_tree_init(IPV6_BYTES);
-
-        if(!core->flow_table || !core->mac_table || !core->ipv4_tree || !core->ipv6_tree)
+        init_core(core);
+        if(!core->flow_table || !core->mac_table || !core->ipv4_tree || !core->ipv6_tree || !core->packet_store || !core->bin_manager)
         {
             fprintf(stderr, "Could not initialize one or more tables\n");
         }
@@ -53,10 +65,11 @@ parser_return_codes_e parse_pcap_file(file_analysis_context_t *core, const char*
                 ret_val = PARSER_PACKET_PROCESSING_ERROR;
             }
 
-            flow_table_print_report(core->flow_table);
-            mac_table_print_report(core->mac_table);
-            ip_tree_print_report(core->ipv4_tree);
-            ip_tree_print_report(core->ipv6_tree);
+            packet_store_debug_print(core->packet_store);
+            // flow_table_print_report(core->flow_table);
+            // mac_table_print_report(core->mac_table);
+            // ip_tree_print_report(core->ipv4_tree);
+            // ip_tree_print_report(core->ipv6_tree);
         }
 
         pcap_close(handle);
@@ -64,6 +77,22 @@ parser_return_codes_e parse_pcap_file(file_analysis_context_t *core, const char*
         printf("---------------------------------\n");
         printf("Finished reading all packets from %s\n", file_path);
 
+        printf("Calculating time series metrics...\n");
+
+        core->bin_manager->start_ts = core->start_ts;
+        core->bin_manager->end_ts = core->end_ts;
+        bin_mgr_ret = bin_manager_init(core->bin_manager);
+
+        if (bin_mgr_ret != BIN_MANAGER_SUCCESS)
+        {
+            fprintf(stderr, "Error initializing bin manager: %d\n", bin_mgr_ret);
+        }
+        else
+        {
+            packet_store_itirate_all_packets(core->packet_store, packet_store_time_series_callback_fn, core->bin_manager);
+
+            printf("Time series metrics calculated successfully.\n");
+        }
 
     }
     return ret_val;
@@ -151,6 +180,12 @@ void advanced_packet_handler(file_analysis_context_t *core, const struct pcap_pk
             fprintf(stderr, "DEBUG: Flow table error: %d\n", flow_ret.ret_code);
         }
     }
+
+    // If the packet was successfully processed by all handlers, add it to the packet store for time series analysis
+    if(ret_val != PROTO_HANDLER_CORRUPT_PACKET)
+    {
+        packet_store_add_packet(core->packet_store, &info);
+    }
 }
 
 void basic_packet_handler(uint8_t *args, const struct pcap_pkthdr *header, const uint8_t *packet)
@@ -211,5 +246,39 @@ void basic_packet_handler(uint8_t *args, const struct pcap_pkthdr *header, const
                 icmp_h->type
             );
         }
+    }
+}
+
+
+void core_free(file_analysis_context_t *core)
+{
+    if (core)
+    {
+        if (core->flow_table)
+        {
+            flow_table_free_table(core->flow_table);
+        }
+        if (core->mac_table)
+        {
+            mac_table_free_table(core->mac_table);
+        }
+        if (core->ipv4_tree)
+        {
+            ip_tree_free_tree(core->ipv4_tree);
+        }
+        if (core->ipv6_tree)
+        {
+            ip_tree_free_tree(core->ipv6_tree);
+        }
+        if (core->packet_store)
+        {
+            packet_store_free(core->packet_store);
+        }
+        if(core->bin_manager)
+        {
+            bin_manager_free(core->bin_manager);
+        }
+
+        free(core);
     }
 }

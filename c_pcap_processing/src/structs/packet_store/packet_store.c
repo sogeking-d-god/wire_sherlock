@@ -145,7 +145,7 @@ packet_store_status_e packet_store_add_packet(packet_store_t *store, const packe
     if (status == PACKET_STORE_SUCCESS)
     {
         current_idx = store->current_block->packet_count;
-        store->current_block->packets[current_idx] = *pkt;
+        memcpy(&store->current_block->packets[current_idx], pkt, sizeof(packet_info_t));
 
         store->current_block->end_ts = pkt->cap_info.ts;
         store->current_block->packet_count++;
@@ -348,7 +348,7 @@ void packet_store_itirate_blocks(packet_store_t *store, packet_block_callback_fn
     }
 }
 
-void packet_store_itirate_messages_in_block(packet_block_t *block, packet_block_callback_fn callback, void *context)
+void packet_store_itirate_messages_in_block(packet_block_t *block, packet_info_callback_fn callback, void *context)
 {
     if (block != NULL && callback != NULL)
     {
@@ -359,7 +359,23 @@ void packet_store_itirate_messages_in_block(packet_block_t *block, packet_block_
     }
 }
 
-void packet_store_itirate_packets_in_time_range(packet_store_t *store, struct timeval start_time, struct timeval end_time, packet_block_callback_fn callback, void *context)
+void packet_store_itirate_all_packets(packet_store_t *store, packet_info_callback_fn callback, void *context)
+{
+    packet_block_t *block;
+    if (store != NULL && callback != NULL)
+    {
+        for (int i = 0; i < store->total_blocks; i++)
+        {
+            block = store->block_index[i];
+            for (int j = 0; j < block->packet_count; j++)
+            {
+                callback(&block->packets[j], context);
+            }
+        }
+    }
+}
+
+void packet_store_itirate_packets_in_time_range(packet_store_t *store, struct timeval start_time, struct timeval end_time, packet_info_callback_fn callback, void *context)
 {
     packet_block_t *block;
     int start_block_index, start_packet_index;
@@ -430,4 +446,23 @@ void packet_store_itirate_packets_in_time_range(packet_store_t *store, struct ti
             }
         }
     }
+}
+
+void packet_store_time_series_callback_fn(packet_info_t *pkt, void *context)
+{
+    bin_manager_t *mgr = (bin_manager_t*)context;
+    bin_manager_process_packet(mgr, pkt);
+}
+
+void packet_store_debug_print(packet_store_t *store)
+{
+    printf("\n--- Packet Store Debug ---\n");
+    printf("Total Blocks: %u\n", store->total_blocks);
+    for (uint32_t i = 0; i < store->total_blocks; i++) {
+        printf("Block %u: %u packets, Time: %ld.%06ld\n",
+                i, store->block_index[i]->packet_count,
+                store->block_index[i]->start_ts.tv_sec,
+                store->block_index[i]->start_ts.tv_usec);
+    }
+    printf("--------------------------\n");
 }

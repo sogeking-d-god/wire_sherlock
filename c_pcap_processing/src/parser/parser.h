@@ -9,7 +9,15 @@
 #include "flow_table.h"
 #include "mac_table.h"
 
+#include "time_series.h"
+#include "packet_store.h"
+
 #define PCAP_FILE_HEADER_SIZE 24
+#define PCAP_PACKET_HEADER_SIZE 16
+
+typedef struct packet_store packet_store_t;
+typedef struct bin_manager bin_manager_t;
+
 
 typedef enum
 {
@@ -33,8 +41,9 @@ typedef struct file_analysis_context_s
     struct timeval end_ts;
     uint64_t total_packets;
 
-    // Configuration from Python
-    uint32_t bin_size_ms;
+    // Time series data
+    packet_store_t * packet_store;
+    bin_manager_t * bin_manager;
 } file_analysis_context_t;
 
 parser_return_codes_e parse_pcap_file(file_analysis_context_t *core, const char* file_path);
@@ -42,5 +51,8 @@ parser_return_codes_e parse_pcap_file(file_analysis_context_t *core, const char*
 void basic_packet_handler(uint8_t *args, const struct pcap_pkthdr *header, const uint8_t *packet);
 
 void advanced_packet_handler(file_analysis_context_t *core, const struct pcap_pkthdr *header, const uint8_t *packet, uint32_t file_offset);
+
+void core_free(file_analysis_context_t *core);
+
 
 #endif
