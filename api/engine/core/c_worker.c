@@ -10,6 +10,7 @@
 #include "ipc_config.h"
 #include "parser.h"
 #include "parser_wrapper.h"
+#include "metrics_wrapper.h"
 
 void send_json(int socket_fd, cJSON *json_obj)
 {
@@ -161,6 +162,11 @@ int main(int argc, char *argv[])
                         results_json = cJSON_CreateString("Error during parsing.");
                         send_api_response(client_sock, STATUS_ERROR, results_json);
                     }
+                }
+
+                else if (strcmp(cmd->valuestring, CMD_GET_BINS) == 0)
+                {
+                    handle_get_bins_request(client_sock, core, request);
                 }
 
                 else if (strcmp(cmd->valuestring, CMD_PING) == 0)

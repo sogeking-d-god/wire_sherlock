@@ -31,6 +31,8 @@ bin_manager_ret_e bin_manager_init(bin_manager_t * mgr)
 {
     bin_manager_ret_e ret_val = BIN_MANAGER_SUCCESS;
 
+    metric_index_e type;
+
     if (!mgr)
     {
         printf("Error: bin_manager_init received NULL pointer.\n");
@@ -58,11 +60,13 @@ bin_manager_ret_e bin_manager_init(bin_manager_t * mgr)
 
         for (int i = 0; i < mgr->metrics_count && ret_val == BIN_MANAGER_SUCCESS; i++)
         {
-            if(mgr->bins[i] == NULL)
+            type = mgr->metrics[i];
+
+            if(mgr->bins[type] == NULL)
             {
-                mgr->bins[i] = (double *)calloc(mgr->total_bins, sizeof(double));
+                mgr->bins[type] = (double *)calloc(mgr->total_bins, sizeof(double));
             }
-            if (mgr->bins[i] == NULL)
+            if (mgr->bins[type] == NULL)
             {
                 printf("Error: Memory allocation failed for bins[%d].\n", i);
                 ret_val = BIN_MANAGER_MALLOC_ERROR;
@@ -76,6 +80,9 @@ bin_manager_ret_e bin_manager_process_packet(bin_manager_t *mgr, const packet_in
 {
     bin_manager_ret_e ret_val = BIN_MANAGER_SUCCESS;
     long idx;
+    metric_index_e type;
+
+
     if(!mgr || !pkt || mgr->metrics_count <= 0)
     {
         printf("Error: bin_manager_process_packet received invalid parameters.\n");
@@ -84,16 +91,29 @@ bin_manager_ret_e bin_manager_process_packet(bin_manager_t *mgr, const packet_in
     else
     {
         idx = calculate_bin_index(pkt->cap_info.ts, mgr->start_ts, mgr->bin_size);
-        for (int i = 0; i < mgr->metrics_count; i++)
+
+        if(idx < 0 || idx >= mgr->total_bins)
         {
-            if(mgr->metrics[i] < 0 || mgr->metrics[i] >= METRICS_COUNT)
+            printf("Warning: Packet timestamp is out of the range of the bin manager. Packet timestamp: %ld.%06ld, Bin manager range: %ld.%06ld - %ld.%06ld\n",
+                   pkt->cap_info.ts.tv_sec, pkt->cap_info.ts.tv_usec,
+                   mgr->start_ts.tv_sec, mgr->start_ts.tv_usec,
+                   mgr->end_ts.tv_sec, mgr->end_ts.tv_usec);
+            ret_val = BIN_MANAGER_PACKET_TIMESTAMP_OUT_OF_RANGE_WARNING;
+        }
+        else
+        {
+            for (int i = 0; i < mgr->metrics_count; i++)
             {
-                printf("Error: Metric index %d is out of bounds for METRICS_COUNT %d.\n", mgr->metrics[i], METRICS_COUNT);
-                ret_val = BIN_MANAGER_OUT_OF_BOUNDS_METRIC_INDEX_ERROR;
-            }
-            else
-            {
-                METRIC_REGISTRY[mgr->metrics[i]](pkt, &(mgr->bins[i][idx]));
+                type = mgr->metrics[i];
+                if(type < 0 || type >= METRICS_COUNT)
+                {
+                    printf("Error: Metric index %d is out of bounds for METRICS_COUNT %d.\n", type, METRICS_COUNT);
+                    ret_val = BIN_MANAGER_OUT_OF_BOUNDS_METRIC_INDEX_ERROR;
+                }
+                else
+                {
+                    METRIC_REGISTRY[type](pkt, &(mgr->bins[type][idx]));
+                }
             }
         }
     }
@@ -102,12 +122,15 @@ bin_manager_ret_e bin_manager_process_packet(bin_manager_t *mgr, const packet_in
 
 void bin_manager_free_bins(bin_manager_t *mgr)
 {
+    metric_index_e type;
+
     if (mgr)
     {
         for (int i = 0; i < mgr->metrics_count; i++)
         {
-            free(mgr->bins[i]);
-            mgr->bins[i] = NULL;
+            type = mgr->metrics[i];
+            free(mgr->bins[type]);
+            mgr->bins[type] = NULL;
         }
     }
 }
@@ -121,6 +144,7 @@ void bin_manager_free(bin_manager_t *mgr)
 bin_manager_ret_e bin_manager_process_packet_block(bin_manager_t *mgr, const packet_block_t *block)
 {
     bin_manager_ret_e ret_val = BIN_MANAGER_SUCCESS;
+
     if (!mgr || !block)
     {
         printf("Error: bin_manager_process_packet_block received NULL pointer.\n");

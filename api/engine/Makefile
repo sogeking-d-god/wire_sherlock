@@ -33,6 +33,7 @@ CFLAGS = -Wall -Wextra -Wpedantic -Wshadow -g \
          -I$(SRC_PCAP)/structs/layer2_hash \
          -I$(SRC_PCAP)/structs/patricia_tree \
          -I$(SRC_PCAP)/structs/packet_store \
+         -I$(WRAPPERS_DIR)/parsing \
          -D_DEFAULT_SOURCE
 # קישור ספריות: הוספתי את -lm כי אלגוריתמים כמו DBSCAN/PELT דורשים math.h
 LDFLAGS = -lpcap -lcjson -lm
@@ -60,7 +61,8 @@ SRCS = $(CORE_DIR)/c_worker.c \
        $(SRC_ANALYTICS)/kd_tree.c \
        $(SRC_ANALYTICS)/metrics.c \
        $(SRC_ANALYTICS)/stats.c \
-       $(SRC_ANALYTICS)/intro_select.c
+       $(SRC_ANALYTICS)/intro_select.c\
+       $(WRAPPERS_DIR)/parsing/metrics_wrapper.c
 
 OBJS = $(SRCS:.c=.o)
 
