@@ -1,6 +1,6 @@
 CC = cc
 
-# נתיבי שורש יחסיים למיקום ה-Makefile (api/engine)
+# נתיבי שורש יחסיים
 API_ROOT       = ..
 PROJECT_ROOT   = ../..
 ANALYTICS_ROOT = $(PROJECT_ROOT)/analytics
@@ -12,7 +12,7 @@ WRAPPERS_DIR   = ./wrappers
 SRC_PCAP       = $(PCAP_ROOT)/src
 SRC_ANALYTICS  = $(ANALYTICS_ROOT)/src
 
-# Flags של קומפילציה - כולל את כל ה-Header paths מה-tree שלך
+# Flags של קומפילציה
 CFLAGS = -Wall -Wextra -Wpedantic -Wshadow -g \
          -I$(API_ROOT)/config \
          -I$(CORE_DIR) \
@@ -33,13 +33,14 @@ CFLAGS = -Wall -Wextra -Wpedantic -Wshadow -g \
          -I$(SRC_PCAP)/structs/layer2_hash \
          -I$(SRC_PCAP)/structs/patricia_tree \
          -I$(SRC_PCAP)/structs/packet_store \
-         -I$(WRAPPERS_DIR)/parsing \
          -D_DEFAULT_SOURCE
-# קישור ספריות: הוספתי את -lm כי אלגוריתמים כמו DBSCAN/PELT דורשים math.h
+
 LDFLAGS = -lpcap -lcjson -lm
 
-# רשימת קבצי מקור לפי ה-tree שסיפקת
-SRCS = $(CORE_DIR)/c_worker.c \
+# רשימת קבצי מקור - החלפתי את c_worker.c ב-main.c והוספתי את השכבות החדשות
+SRCS = $(CORE_DIR)/main.c \
+       $(CORE_DIR)/socket_manager.c \
+       $(CORE_DIR)/ipc_messenger.c \
        $(WRAPPERS_DIR)/parsing/parser_wrapper.c \
        $(SRC_PCAP)/parser/parser.c \
        $(SRC_PCAP)/layers/l2/eth_handler.c \
@@ -61,11 +62,13 @@ SRCS = $(CORE_DIR)/c_worker.c \
        $(SRC_ANALYTICS)/kd_tree.c \
        $(SRC_ANALYTICS)/metrics.c \
        $(SRC_ANALYTICS)/stats.c \
-       $(SRC_ANALYTICS)/intro_select.c\
-       $(WRAPPERS_DIR)/parsing/metrics_wrapper.c
+       $(SRC_ANALYTICS)/intro_select.c \
+       $(WRAPPERS_DIR)/parsing/metrics_wrapper.c \
+       $(CORE_DIR)/engine_controller.c
 
 OBJS = $(SRCS:.c=.o)
 
+# השם נשאר c_worker כדי שהפייתון ימצא אותו
 TARGET = $(CORE_DIR)/c_worker
 
 all: $(TARGET)
