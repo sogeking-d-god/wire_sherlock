@@ -7,6 +7,12 @@ class IpStat(BaseModel):
     packets: float
     bytes: float
 
+class IpTreeData(BaseModel):
+    history: List[IpStat] = []
+    count: int = 0
+    packets: float = 0
+    bytes: float = 0
+
 # --- L2: MAC Stats ---
 class MacStat(BaseModel):
     mac: str
@@ -14,8 +20,8 @@ class MacStat(BaseModel):
     bytes: float
 
     # Optional: will be displayed only if the C engine provides this history
-    ipv4_history: Optional[List[IpStat]] = None
-    ipv6_history: Optional[List[IpStat]] = None
+    ipv4_data: Optional[IpTreeData] = None
+    ipv6_data: Optional[IpTreeData] = None
 
 # --- L4: Flows & Sessions ---
 class FlowKey(BaseModel):

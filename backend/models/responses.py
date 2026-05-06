@@ -1,14 +1,18 @@
 from pydantic import BaseModel
 from typing import List, Dict, Optional, Union
 
+class MacDetails(BaseModel):
+    mac: str
+    mac_packets: float
+    mac_bytes: float
+
 class NodeDetails(BaseModel):
     id: str
     label: str
     ip: str
-    packets: Union[int, float]
-    bytes: Union[int, float]
-    mac: str = "Unknown"
-
+    packets: float
+    bytes: float
+    macs: List[MacDetails] = []
 class SessionDetails(BaseModel):
     id: str
     src_ip: str

@@ -95,15 +95,12 @@ if __name__ == "__main__":
         if session.ping():
             print("Engine is alive. Starting analysis...")
 
-            # עכשיו התשובה היא אובייקט Pydantic חכם!
             result = session.run_analysis()
 
-            # אפשר לגשת לשדות בצורה נקייה עם השלמה אוטומטית (Autocomplete)
             print(f"Total Packets: {result.total_packets}")
             if result.global_ipv4_stats:
                 print(f"Unique IPv4 Addresses: {len(result.global_ipv4_stats)}")
 
-            # הבאת מערך בינארי בסטייל נקי
             traffic_bins = session.get_metric_bins(MetricType.BYTE_COUNT)
             print(f"Traffic Max Spikes: {np.max(traffic_bins)}")
 

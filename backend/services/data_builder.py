@@ -29,17 +29,32 @@ def build_topology_data(raw_result: ParserResult):
     nodes_dict = {}
     sessions = []
 
-    # בניית ה-Nodes
+    # Build nodes from global IPv4 stats
     for ip_stat in raw_result.global_ipv4_stats or []:
         nodes_dict[ip_stat.ip] = {
             "id": ip_stat.ip,
             "label": ip_stat.ip,
-            "ip": ip_stat.ip,       # <-- הוספנו את השדה שהיה חסר!
+            "ip": ip_stat.ip,
             "packets": ip_stat.packets,
             "bytes": ip_stat.bytes,
-            "mac": "Unknown"
+            "mac": []
         }
 
+    # Add MAC from mac list to its corresponding IP node
+    for mac_info in raw_result.mac_stats or []:
+        current_mac = mac_info.mac
+
+        if mac_info.ipv4_data and mac_info.ipv4_data.history:
+            for ip_entry in mac_info.ipv4_data.history:
+                target_ip = ip_entry.ip
+                if target_ip in nodes_dict:
+                    # fill ip data
+                    nodes_dict[target_ip]["macs"].append({
+                        "mac": current_mac,
+                        "mac_packets": ip_entry.packets,
+                        "mac_bytes": ip_entry.bytes
+                    })
+    # Build sessions from flows
     for flow in raw_result.flows or []:
         key = flow.key
         for sess in flow.sessions:

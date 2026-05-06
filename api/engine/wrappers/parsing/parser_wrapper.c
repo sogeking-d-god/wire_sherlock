@@ -132,21 +132,36 @@ static void add_mac_to_json_callback(mac_node_t *node, void *context)
 {
     cJSON *mac_array = (cJSON *)context;
     cJSON *mac_obj = cJSON_CreateObject();
+    cJSON *ipv4_data = cJSON_CreateObject();
+    cJSON *ipv6_data = cJSON_CreateObject();
+
     char mac_buf[18];
 
     get_mac_str(node->mac_addr, mac_buf);
 
     cJSON_AddStringToObject(mac_obj, "mac", mac_buf);
-    cJSON_AddNumberToObject(mac_obj, "packets", node->packet_count);
+    cJSON_AddNumberToObject(mac_obj, "packets", (double)node->packet_count);
     cJSON_AddNumberToObject(mac_obj, "bytes", (double)node->total_bytes);
 
     if (node->ipv4_tree)
     {
-        cJSON_AddItemToObject(mac_obj, "ipv4_history", wrap_ip_tree(node->ipv4_tree));
+        cJSON_AddItemToObject(ipv4_data, "history", wrap_ip_tree(node->ipv4_tree));
+        cJSON_AddNumberToObject(ipv4_data, "count", node->ipv4_tree->total_unique_ips);
+
+        cJSON_AddNumberToObject(ipv4_data, "packets", (double)node->ipv4_tree->root->stats.total_packets);
+        cJSON_AddNumberToObject(ipv4_data, "bytes", (double)node->ipv4_tree->root->stats.total_bytes);
+
+        cJSON_AddItemToObject(mac_obj, "ipv4_data", ipv4_data);
     }
     if (node->ipv6_tree)
     {
-        cJSON_AddItemToObject(mac_obj, "ipv6_history", wrap_ip_tree(node->ipv6_tree));
+        cJSON_AddItemToObject(ipv6_data, "history", wrap_ip_tree(node->ipv6_tree));
+        cJSON_AddNumberToObject(ipv6_data, "count", node->ipv6_tree->total_unique_ips);
+
+        cJSON_AddNumberToObject(ipv6_data, "packets", (double)node->ipv6_tree->root->stats.total_packets);
+        cJSON_AddNumberToObject(ipv6_data, "bytes", (double)node->ipv6_tree->root->stats.total_bytes);
+
+        cJSON_AddItemToObject(mac_obj, "ipv6_data", ipv6_data);
     }
 
     cJSON_AddItemToArray(mac_array, mac_obj);
