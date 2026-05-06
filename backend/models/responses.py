@@ -28,5 +28,5 @@ class SessionDetails(BaseModel):
     end_status: str
 
 class TopologyResponse(BaseModel):
-    nodes: Dict[str, NodeDetails]
+    nodes: List[NodeDetails]
     links: List[SessionDetails]

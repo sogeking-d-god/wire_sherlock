@@ -37,7 +37,7 @@ def build_topology_data(raw_result: ParserResult):
             "ip": ip_stat.ip,
             "packets": ip_stat.packets,
             "bytes": ip_stat.bytes,
-            "mac": []
+            "macs": []
         }
 
     # Add MAC from mac list to its corresponding IP node
@@ -77,5 +77,4 @@ def build_topology_data(raw_result: ParserResult):
                 "start_status": status["start_status"],
                 "end_status": status["end_status"]
             })
-
-    return {"nodes": nodes_dict, "links": sessions}
+    return {"nodes": list(nodes_dict.values()), "links": sessions} # Links is already a list

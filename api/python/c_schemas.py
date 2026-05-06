@@ -10,8 +10,6 @@ class IpStat(BaseModel):
 class IpTreeData(BaseModel):
     history: List[IpStat] = []
     count: int = 0
-    packets: float = 0
-    bytes: float = 0
 
 # --- L2: MAC Stats ---
 class MacStat(BaseModel):
