@@ -8,9 +8,9 @@ import struct
 import numpy as np
 from enum import IntEnum
 
-from python.c_ipc_manager import CEngineIPC, MetricType
-from python.c_schemas import ParserResult
-from config import ipc_config
+from api.python.c_ipc_manager import CEngineIPC, MetricType
+from api.python.c_schemas import ParserResult
+from api.config import ipc_config
 
 # =====================================================================
 # High-Level Wrapper
@@ -46,6 +46,10 @@ class WireSherlockSession:
         Triggers the full PCAP parsing in C, receives the massive JSON,
         and parses it into a clean Pydantic model.
         """
+        if not self.ipc.sock:
+            print("[Python] Engine not started. Auto-starting...")
+            self.start()
+
         response = self.ipc.send_command(ipc_config.CMD_START_ANALYSIS)
 
         if not response or response.get('status') != 'status_success':

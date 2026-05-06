@@ -5,6 +5,16 @@
 #include "flow_table.h"
 #include "mac_table.h"
 
+static double get_precise_time(struct timeval *tv)
+{
+    double ret = 0;
+    if (tv)
+    {
+        ret = (double)tv->tv_sec + ((double)tv->tv_usec / 1000000.0);
+    }
+    return ret;
+}
+
 static void add_flow_to_json_callback(flow_node_t *node, void *context)
 {
     cJSON *flows_array = (cJSON *)context;
@@ -40,8 +50,17 @@ static void add_flow_to_json_callback(flow_node_t *node, void *context)
         cJSON_AddNumberToObject(sess_obj, "start_state", curr_session->start_state);
         cJSON_AddNumberToObject(sess_obj, "end_state", curr_session->end_state);
 
-        cJSON_AddNumberToObject(sess_obj, "start_time", curr_session->messages.head ? curr_session->messages.head->timestamp.tv_sec : 0);
-        cJSON_AddNumberToObject(sess_obj, "end_time", curr_session->messages.tail ? curr_session->messages.tail->timestamp.tv_sec : 0);
+        if (curr_session->messages.head) {
+            cJSON_AddNumberToObject(sess_obj, "start_time", get_precise_time(&curr_session->messages.head->timestamp));
+        } else {
+            cJSON_AddNumberToObject(sess_obj, "start_time", 0);
+        }
+
+        if (curr_session->messages.tail) {
+            cJSON_AddNumberToObject(sess_obj, "end_time", get_precise_time(&curr_session->messages.tail->timestamp));
+        } else {
+            cJSON_AddNumberToObject(sess_obj, "end_time", 0);
+        }
 
         for (device_idx = 0; device_idx < DEVICES_IN_FLOW; device_idx++)
         {
@@ -66,12 +85,11 @@ static void add_flow_to_json_callback(flow_node_t *node, void *context)
 
 static void add_ip_to_json_callback(ip_tree_node_t *node, ip_version_e ip_addr_type, void *context)
 {
-    if (!node || !context) return; // הגנה בסיסית
+    if (!node || !context) return;
 
     cJSON *ip_arr = (cJSON *)context;
     char ip_buf[INET6_ADDRSTRLEN] = {0};
 
-    // בדיקה 1: האם ה-IP קיים?
     if (node->ip == NULL) {
         printf("[DEBUG] Found a node with NULL IP! Skipping...\n");
         return;
@@ -85,28 +103,12 @@ static void add_ip_to_json_callback(ip_tree_node_t *node, ip_version_e ip_addr_t
     cJSON_AddStringToObject(ip_obj, "ip", ip_buf);
     cJSON_AddNumberToObject(ip_obj, "packets", (double)node->stats.total_packets);
 
-    // בדיקה 2: Casting מפורש ל-double עבור ה-JSON
     cJSON_AddNumberToObject(ip_obj, "bytes", (double)node->stats.total_bytes);
 
     if (!cJSON_AddItemToArray(ip_arr, ip_obj)) {
         cJSON_Delete(ip_obj);
     }
 }
-
-// static void add_ip_to_json_callback(ip_tree_node_t *node, ip_version_e ip_addr_type, void *context)
-// {
-//     cJSON *ip_arr = (cJSON *)context;
-//     cJSON *ip_obj = cJSON_CreateObject();
-//     char ip_buf[INET6_ADDRSTRLEN];
-
-//     get_ip_str((const ip_addr_t *)node->ip, ip_addr_type, ip_buf, sizeof(ip_buf));
-
-//     cJSON_AddStringToObject(ip_obj, "ip", ip_buf);
-//     cJSON_AddNumberToObject(ip_obj, "packets", node->stats.total_packets);
-//     cJSON_AddNumberToObject(ip_obj, "bytes", node->stats.total_bytes);
-
-//     cJSON_AddItemToArray(ip_arr, ip_obj);
-// }
 
 cJSON* wrap_ip_tree(ip_tree_t *tree)
 {

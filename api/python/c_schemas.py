@@ -29,15 +29,13 @@ class FlowKey(BaseModel):
 class DeviceData(BaseModel):
     packets_sent: int
     bytes_sent: int
-
 class SessionData(BaseModel):
     session_idx: int
     start_state: int
     end_state: int
-    start_time: int
-    end_time: int
-    devices: List[DeviceData] # always 2 devices.
-
+    start_time: float
+    end_time: float
+    devices: List[DeviceData]
 class FlowData(BaseModel):
     key: FlowKey
     sessions: List[SessionData]

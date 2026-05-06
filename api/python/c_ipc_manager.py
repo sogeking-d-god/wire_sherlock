@@ -8,8 +8,8 @@ import struct
 import numpy as np
 from enum import IntEnum
 
-from python.c_schemas import ParserResult
-import config.ipc_config as ipc_config
+from api.python.c_schemas import ParserResult
+import api.config.ipc_config as ipc_config
 class MetricType(IntEnum):
     PACKET_COUNT = 0
     BYTE_COUNT = 1
@@ -35,7 +35,7 @@ class CEngineIPC:
         """Starts the C engine process and establishes the socket connection."""
 
         self.c_process = subprocess.Popen(
-            ["./engine/core/c_worker", "--pcap", self.pcap_full_path, "--socket", self.socket_path],
+            ["./api/engine/core/c_worker", "--pcap", self.pcap_full_path, "--socket", self.socket_path],
             stdout=None, stderr=None
         )
         time.sleep(0.5) # Wait a moment for the C process to start and create the socket

@@ -21,7 +21,7 @@ def connect_via_uds():
             response = json.loads(data.decode('utf-8'))
 
             print("\n[Python] Received Data:")
-            print(json.dumps(response, indent=4))
+            # print(json.dumps(response, indent=4))
 
     except Exception as e:
         print(f"[Python] Connection error: {e}")

@@ -1,48 +1,66 @@
+from api.python.c_schemas import ParserResult
 from backend.models.responses import TopologyResponse, NodeDetails, SessionDetails
 
-def build_topology_data(raw_c_json: dict) -> TopologyResponse:
+def translate_tcp_state(start_state: int, end_state: int) -> dict:
+    """Translates the TCP start and end states from the C engine into human-readable strings for the frontend."""
+    # START STATE
+    start_map = {
+        0: "Idle (No Handshake)",
+        1: "SYN Sent",
+        2: "SYN-ACK Sent",
+        3: "Handshake Complete"
+    }
+
+    # END STATE
+    end_map = {
+        -3: "Not Closed",
+        -2: "FIN (Source)",
+        -1: "FIN (Dest)",
+        1: "Closed (Graceful)",
+        2: "Closed (Reset/Ungraceful)"
+    }
+
+    return {
+        "start_status": start_map.get(start_state, "Unknown"),
+        "end_status": end_map.get(end_state, "Unknown")
+    }
+
+def build_topology_data(raw_result: ParserResult):
     nodes_dict = {}
-    links_list = []
+    sessions = []
 
-    # 1. create nodes from global_ipv4_stats
-    for ip_obj in raw_c_json.get("global_ipv4_stats", []):
-        ip_addr = ip_obj.get("ip")
-        if ip_addr:
-            nodes_dict[ip_addr] = NodeDetails(
-                ip=ip_addr,
-                macs=[],
-                total_packets=int(ip_obj.get("packets", 0))
-            )
+    # בניית ה-Nodes
+    for ip_stat in raw_result.global_ipv4_stats or []:
+        nodes_dict[ip_stat.ip] = {
+            "id": ip_stat.ip,
+            "label": ip_stat.ip,
+            "ip": ip_stat.ip,       # <-- הוספנו את השדה שהיה חסר!
+            "packets": ip_stat.packets,
+            "bytes": ip_stat.bytes,
+            "mac": "Unknown"
+        }
 
-    # 2. Add MAC addresses to the corresponding IP nodes using mac_stats and their ipv4_history
-    for mac_obj in raw_c_json.get("mac_stats", []):
-        mac_addr = mac_obj.get("mac")
+    for flow in raw_result.flows or []:
+        key = flow.key
+        for sess in flow.sessions:
+            status = translate_tcp_state(sess.start_state, sess.end_state)
 
-        for ip_hist in mac_obj.get("ipv4_history", []):
-            ip_addr = ip_hist.get("ip")
+            total_packets = sum(d.packets_sent for d in sess.devices)
+            total_bytes = sum(d.bytes_sent for d in sess.devices)
 
-            if ip_addr in nodes_dict and mac_addr not in nodes_dict[ip_addr].macs:
-                nodes_dict[ip_addr].macs.append(mac_addr)
+            sessions.append({
+                "id": f"{key.src_ip}-{key.dst_ip}-{sess.session_idx}",
+                "src_ip": key.src_ip,
+                "dst_ip": key.dst_ip,
+                "src_port": key.src_port,
+                "dst_port": key.dst_port,
+                "protocol": key.protocol,
+                "start_time": float(sess.start_time),
+                "end_time": float(sess.end_time),
+                "packets": total_packets,
+                "bytes": total_bytes,
+                "start_status": status["start_status"],
+                "end_status": status["end_status"]
+            })
 
-    # 3. Create links from flows and their sessions
-    for flow in raw_c_json.get("flows", []):
-        key = flow.get("key", {})
-        src_ip = key.get("src_ip")
-        dst_ip = key.get("dst_ip")
-        protocol = key.get("protocol", 0)
-
-        # Itirate over logical sessions in the flow to create links
-        for sess in flow.get("sessions", []):
-            session_idx = sess.get("session_idx", 0)
-
-            link = SessionDetails(
-                id=f"{src_ip}-{dst_ip}-{protocol}-{session_idx}",  # unique ID for the session
-                src_ip=src_ip,
-                dst_ip=dst_ip,
-                start_time=sess.get("start_time", 0),
-                end_time=sess.get("end_time", 0),
-                protocol=protocol
-            )
-            links_list.append(link)
-
-    return TopologyResponse(nodes=nodes_dict, links=links_list)
+    return {"nodes": nodes_dict, "links": sessions}
