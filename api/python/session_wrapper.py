@@ -9,7 +9,7 @@ import numpy as np
 from enum import IntEnum
 
 from api.python.c_ipc_manager import CEngineIPC, MetricType
-from api.python.c_schemas import ParserResult
+from api.python.c_schemas import ParserResult, MetricResult
 from api.config import ipc_config
 
 # =====================================================================
@@ -59,32 +59,36 @@ class WireSherlockSession:
         self.analysis_summary = ParserResult(**response.get('data'))
         return self.analysis_summary
 
-    def get_metric_bins(self, metric: MetricType) -> np.ndarray:
+    def get_metric_bins(self, metric: MetricType) -> MetricResult:
         """
-        Requests a specific statistical metric from C.
-        Returns a Numpy array directly.
+        Requests binary statistical data from the C Engine via IPC.
+        Returns a validated MetricResult object.
         """
-        if metric in self.metrics_cache:
-            return self.metrics_cache[metric]
-
+        # Send command to C
         response = self.ipc.send_command(ipc_config.CMD_GET_BINS, {"metric_id": int(metric)})
 
         if not response or response.get("status") != ipc_config.STATUS_BINARY:
-            raise RuntimeError(f"Failed to fetch metric: {response.get('data')}")
+            raise RuntimeError(f"C Engine failed to provide metric {metric.name}")
 
+        # Extract metadata sent via JSON
         meta = response["data"]
         byte_size = int(meta["byte_size"])
 
+        # Receive the raw binary array (double*)
         raw_binary = self.ipc.recv_binary(byte_size)
-        if raw_binary is None:
-            raise IOError("Incomplete binary stream received.")
+        if not raw_binary:
+            raise IOError("Failed to receive binary payload from C Engine")
 
-        # create numpy array
+        # Convert binary to numpy and then to a standard Python list
         bins_array = np.frombuffer(raw_binary, dtype=np.float64).copy()
-        self.metrics_cache[metric] = bins_array
 
-        return bins_array
-
+        return MetricResult(
+            metric_id=meta["metric_id"],
+            start_ts=meta["start_ts"],
+            bin_size_ms=meta["bin_size_ms"],
+            total_bins=meta["total_bins"],
+            data=bins_array.tolist()
+        )
 
 if __name__ == "__main__":
     session = WireSherlockSession("../pcap_files/regular_pcap_file.pcap")

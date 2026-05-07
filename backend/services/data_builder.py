@@ -92,3 +92,31 @@ def build_topology_data(raw_result: ParserResult):
                 "end_status": status["end_status"]
             })
     return {"nodes": list(nodes_dict.values()), "links": sessions, "macs": list(macs_dict.values())} # Links is already a list
+
+from backend.models.responses import MetricResponse
+from api.python.c_schemas import MetricResult
+
+# Professional Mapping of Metric IDs
+METRIC_CONFIG = {
+    0: {"name": "Packets", "unit": "count"},
+    1: {"name": "Bytes", "unit": "bytes"},
+    2: {"name": "TCP_SYN", "unit": "count"},
+    3: {"name": "TCP_RST", "unit": "count"},
+    4: {"name": "TCP_FIN", "unit": "count"},
+    5: {"name": "TCP_ACK", "unit": "count"},
+    6: {"name": "TCP_PSH", "unit": "count"}
+}
+
+def format_metric_for_frontend(metric_id: int, raw_data: MetricResult) -> MetricResponse:
+    """
+    Transforms internal C-Engine metric data into a clean Frontend response.
+    """
+    config = METRIC_CONFIG.get(metric_id, {"name": "Unknown", "unit": "unknown"})
+
+    return MetricResponse(
+        metric_name=config["name"],
+        start_ts=raw_data.start_ts,
+        bin_size_ms=raw_data.bin_size_ms,
+        values=raw_data.data,
+        unit=config["unit"]
+    )

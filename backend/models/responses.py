@@ -36,3 +36,14 @@ class TopologyResponse(BaseModel):
     macs: List[GlobalMacDetails]
     nodes: List[NodeDetails]
     links: List[SessionDetails]
+
+class MetricResponse(BaseModel):
+    """
+    Schema for the Frontend API.
+    Provides everything needed to plot a time-series graph.
+    """
+    metric_name: str     # e.g., "Packets", "Bytes", "TCP_SYN"
+    start_ts: float
+    bin_size_ms: int
+    values: List[float]
+    unit: str            # e.g., "count", "bytes"

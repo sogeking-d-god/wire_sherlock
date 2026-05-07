@@ -1,38 +1,19 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
-import shutil
-import os
-from uuid import uuid4
+from backend import session_manager
+from api.python.session_wrapper import WireSherlockSession
+from fastapi import APIRouter
 
-router = APIRouter(prefix="/api/pcap", tags=["PCAP Management"])
+router = APIRouter(prefix="/api/pcap", tags=["PCAP"])
 
-UPLOAD_DIR = "uploads"
+@router.post("/initialize_default")
+async def initialize_default_session():
+    test_pcap = "/home/ronen/wire_sherlock/pcap_files/regular_pcap_file.pcap"
 
-# Check that the upload directory exists, if not create it
-if not os.path.exists(UPLOAD_DIR):
-    os.makedirs(UPLOAD_DIR)
+    # 1. Create the session object
+    session = WireSherlockSession(test_pcap)
+    session.start()
+    session.run_analysis() # Pre-fill the bins in C
 
-@router.post("/upload")
-async def upload_pcap(file: UploadFile = File(...)):
-    # 1. Check if the uploaded file is a valid PCAP file based on its extension
-    if not file.filename.endswith(('.pcap', '.pcapng')):
-        raise HTTPException(status_code=400, detail="Invalid file type. Only .pcap and .pcapng are supported.")
+    # 2. SAVE it to the manager so others can see it
+    session_manager.set_session(session)
 
-    # 2. Create a unique ID for the file (to avoid name conflicts)
-    file_id = str(uuid4())
-    file_extension = os.path.splitext(file.filename)[1]
-    saved_filename = f"{file_id}{file_extension}"
-    file_path = os.path.join(UPLOAD_DIR, saved_filename)
-
-    # 3. Save the file to disk
-    try:
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
-
-    return {
-        "status": "success",
-        "file_id": file_id,
-        "original_name": file.filename,
-        "saved_path": file_path
-    }
+    return {"status": "session_initialized", "msg": "Session is now global"}

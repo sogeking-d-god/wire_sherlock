@@ -53,3 +53,14 @@ class ParserResult(BaseModel):
     global_ipv4_stats: Optional[List[IpStat]] = None
     global_ipv6_stats: Optional[List[IpStat]] = None
     flows: Optional[List[FlowData]] = None
+
+class MetricResult(BaseModel):
+    """
+    Schema for raw metric data received from the C Engine IPC.
+    Used internally between the IPC manager and the Session wrapper.
+    """
+    metric_id: int
+    start_ts: float      # Epoch time of the first packet
+    bin_size_ms: int     # Resolution (e.g., 100ms)
+    total_bins: int
+    data: List[float]    # The actual statistical values (bins)

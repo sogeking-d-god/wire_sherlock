@@ -1,22 +1,24 @@
 from fastapi import APIRouter, HTTPException
-from backend.services.engine_service import get_raw_analysis
 from backend.services.data_builder import build_topology_data
 from backend.models.responses import TopologyResponse
+# We need to import the session manager to access the global session
+from backend import session_manager
 
 router = APIRouter(prefix="/api/topology", tags=["Topology"])
 
-@router.get("/analyze", response_model=TopologyResponse)
-async def analyze_and_get_topology(pcap_path: str):
+@router.get("/analyze") # This endpoint will trigger the analysis and return the topology data
+async def analyze_and_get_topology():
+    # 1. Retrieve the active session from the manager
+    current_session = session_manager.get_session()
+
+    if not current_session:
+        # If there's no active session, we can't proceed with analysis
+        raise HTTPException(status_code=400, detail="Manager has no active session. Please call /initialize_default first.")
+
     try:
-        # 1. try to get the raw analysis results from the engine service (in the future add a check if we saved the results in the db already)
-        raw_json = get_raw_analysis(pcap_path)
-
-        # 2. build the topology data from the raw JSON using the data builder service for the frontend
-        topology = build_topology_data(raw_json)
-
-        return topology
-
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        # 2. Run the analysis using the session and get the raw JSON output
+        raw_json = current_session.run_analysis()
+        return build_topology_data(raw_json)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+        print(f"Error in Topology: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from backend.routers import topology_router, pcap_router, metrics_router
 
@@ -14,7 +14,7 @@ app.add_middleware(
 # Register routers
 app.include_router(topology_router.router)
 app.include_router(pcap_router.router)
-# app.include_router(metrics_router.router) # נפתח כשיהיה מוכן
+app.include_router(metrics_router.router)
 
 @app.get("/")
 async def root():
