@@ -13,12 +13,12 @@ proto_handler_return_codes_e handle_l3_packet(const uint8_t *data, packet_info_t
     switch (info->mac_info.ether_type)
     {
         case ETH_P_IP:
-            ret_data = handle_ipv4_protocol(data, len_left_recorded, len_left_on_wire, core->ipv4_tree);
+            ret_data = handle_ipv4_protocol(data, len_left_recorded, len_left_on_wire, core->ipv4_tree, info->cap_info.wire_len);
             ret_val = ret_data.ret_val;
             break;
 
         case ETH_P_IPV6:
-            ret_data = handle_ipv6_protocol(data, len_left_recorded, len_left_on_wire, core->ipv6_tree);
+            ret_data = handle_ipv6_protocol(data, len_left_recorded, len_left_on_wire, core->ipv6_tree, info->cap_info.wire_len);
             ret_val = ret_data.ret_val;
             break;
 

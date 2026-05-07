@@ -1,10 +1,10 @@
 from pydantic import BaseModel
 from typing import List, Dict, Optional, Union
 
-class MacDetails(BaseModel):
+class MacNodeInfo(BaseModel):
     mac: str
-    mac_packets: float
-    mac_bytes: float
+    packets_at_node: float
+    bytes_at_node: float
 
 class NodeDetails(BaseModel):
     id: str
@@ -12,7 +12,7 @@ class NodeDetails(BaseModel):
     ip: str
     packets: float
     bytes: float
-    macs: List[MacDetails] = []
+    macs: List[MacNodeInfo] = []
 class SessionDetails(BaseModel):
     id: str
     src_ip: str
@@ -26,7 +26,13 @@ class SessionDetails(BaseModel):
     bytes: Union[int, float]
     start_status: str
     end_status: str
+class GlobalMacDetails(BaseModel):
+    mac: str
+    total_packets: float
+    total_bytes: float
+    associated_ips: List[str]
 
 class TopologyResponse(BaseModel):
+    macs: List[GlobalMacDetails]
     nodes: List[NodeDetails]
     links: List[SessionDetails]

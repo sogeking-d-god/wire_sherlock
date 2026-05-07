@@ -1,7 +1,7 @@
 
 #include "ipv4.h"
 
-l3_ret_data_t handle_ipv4_protocol(const uint8_t *data, uint32_t len_left_recorded, uint32_t len_left_on_wire, ip_tree_t *ipv4_tree)
+l3_ret_data_t handle_ipv4_protocol(const uint8_t *data, uint32_t len_left_recorded, uint32_t len_left_on_wire, ip_tree_t *ipv4_tree, uint32_t len_for_stats)
 {
     l3_ret_data_t ret_struct = {0};
 
@@ -41,8 +41,8 @@ l3_ret_data_t handle_ipv4_protocol(const uint8_t *data, uint32_t len_left_record
             ret_struct.ip_info.ip_proto = ip_header->protocol;
             ret_struct.packet_len -= ret_struct.header_len;
 
-            ip_tree_insert(ipv4_tree, ret_struct.ip_info.src_ip.v4, len_left_on_wire);
-            ip_tree_insert(ipv4_tree, ret_struct.ip_info.dst_ip.v4, len_left_on_wire);
+            ip_tree_insert(ipv4_tree, ret_struct.ip_info.src_ip.v4, len_for_stats);
+            ip_tree_insert(ipv4_tree, ret_struct.ip_info.dst_ip.v4, len_for_stats);
         }
     }
     return ret_struct;

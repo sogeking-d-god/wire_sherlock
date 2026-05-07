@@ -1,7 +1,7 @@
 #include "ipv6.h"
 #include <netinet/ip6.h>
 
-l3_ret_data_t handle_ipv6_protocol(const uint8_t *data, uint32_t len_left_recorded, uint32_t len_left_on_wire, ip_tree_t *ipv6_tree)
+l3_ret_data_t handle_ipv6_protocol(const uint8_t *data, uint32_t len_left_recorded, uint32_t len_left_on_wire, ip_tree_t *ipv6_tree, uint32_t len_for_stats)
 {
     l3_ret_data_t ret_struct;
     struct ip6_hdr *ip_header;
@@ -46,9 +46,10 @@ l3_ret_data_t handle_ipv6_protocol(const uint8_t *data, uint32_t len_left_record
             memcpy(ret_struct.ip_info.src_ip.v6, &ip_header->ip6_src, IPV6_BYTES);
             memcpy(ret_struct.ip_info.dst_ip.v6, &ip_header->ip6_dst, IPV6_BYTES);
 
-            ip_tree_insert(ipv6_tree, ret_struct.ip_info.src_ip.v6, len_left_on_wire);
-            ip_tree_insert(ipv6_tree, ret_struct.ip_info.dst_ip.v6, len_left_on_wire);
+            ip_tree_insert(ipv6_tree, ret_struct.ip_info.src_ip.v6, len_for_stats);
+            ip_tree_insert(ipv6_tree, ret_struct.ip_info.dst_ip.v6, len_for_stats);
 
+            // Process extension headers if they exist, and find the actual L4 protocol
             while (keep_looping == 1 && (current_nxt == IPPROTO_HOPOPTS || current_nxt == IPPROTO_ROUTING ||
                    current_nxt == IPPROTO_FRAGMENT || current_nxt == IPPROTO_DSTOPTS))
             {

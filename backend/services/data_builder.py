@@ -28,6 +28,7 @@ def translate_tcp_state(start_state: int, end_state: int) -> dict:
 def build_topology_data(raw_result: ParserResult):
     nodes_dict = {}
     sessions = []
+    macs_dict = {}
 
     # Build nodes from global IPv4 stats
     for ip_stat in raw_result.global_ipv4_stats or []:
@@ -44,6 +45,14 @@ def build_topology_data(raw_result: ParserResult):
     for mac_info in raw_result.mac_stats or []:
         current_mac = mac_info.mac
 
+        if current_mac not in macs_dict:
+            macs_dict[current_mac] = {
+                "mac": current_mac,
+                "total_packets": 0,
+                "total_bytes": 0,
+                "associated_ips": []
+            }
+
         if mac_info.ipv4_data and mac_info.ipv4_data.history:
             for ip_entry in mac_info.ipv4_data.history:
                 target_ip = ip_entry.ip
@@ -51,9 +60,14 @@ def build_topology_data(raw_result: ParserResult):
                     # fill ip data
                     nodes_dict[target_ip]["macs"].append({
                         "mac": current_mac,
-                        "mac_packets": ip_entry.packets,
-                        "mac_bytes": ip_entry.bytes
+                        "packets_at_node": ip_entry.packets,
+                        "bytes_at_node": ip_entry.bytes
                     })
+                    #fill mac data
+                    macs_dict[current_mac]["total_packets"] += ip_entry.packets
+                    macs_dict[current_mac]["total_bytes"] += ip_entry.bytes
+                    macs_dict[current_mac]["associated_ips"].append(target_ip)
+
     # Build sessions from flows
     for flow in raw_result.flows or []:
         key = flow.key
@@ -77,4 +91,4 @@ def build_topology_data(raw_result: ParserResult):
                 "start_status": status["start_status"],
                 "end_status": status["end_status"]
             })
-    return {"nodes": list(nodes_dict.values()), "links": sessions} # Links is already a list
+    return {"nodes": list(nodes_dict.values()), "links": sessions, "macs": list(macs_dict.values())} # Links is already a list
