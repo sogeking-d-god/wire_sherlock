@@ -22,6 +22,7 @@ class WireSherlockSession:
     """
 
     def __init__(self, pcap_path: str):
+        self.pcap_path = pcap_path
         self.ipc = CEngineIPC(pcap_path)
         self.analysis_summary: ParserResult = None
         self.metrics_cache = {}

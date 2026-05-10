@@ -8,7 +8,7 @@ router = APIRouter(prefix="/api/metrics", tags=["Metrics"])
 @router.get("/{metric_id}", response_model=MetricResponse)
 async def get_traffic_metrics(metric_id: int):
     # 1. Retrieve the active session from the manager
-    current_session = session_manager.get_session()
+    current_session = session_manager.manager.get_session()
 
     if current_session is None:
         raise HTTPException(status_code=400, detail="Session not initialized. Please call initialize_default first.")

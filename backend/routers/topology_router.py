@@ -9,7 +9,7 @@ router = APIRouter(prefix="/api/topology", tags=["Topology"])
 @router.get("/analyze") # This endpoint will trigger the analysis and return the topology data
 async def analyze_and_get_topology():
     # 1. Retrieve the active session from the manager
-    current_session = session_manager.get_session()
+    current_session = session_manager.manager.get_session()
 
     if not current_session:
         # If there's no active session, we can't proceed with analysis
