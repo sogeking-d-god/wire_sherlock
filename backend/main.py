@@ -4,13 +4,18 @@ from backend.routers import topology_router, pcap_router, metrics_router
 
 app = FastAPI(title="WireSherlock API", version="1.0.0")
 
+origins = [
+    "http://localhost:5173",  # frontend port
+    "http://127.0.0.1:5173",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], #to be updated to specific origins in production
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"],
-)
+    allow_headers=["*"],)
+
 # Register routers
 app.include_router(topology_router.router)
 app.include_router(pcap_router.router)

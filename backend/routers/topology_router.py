@@ -3,10 +3,11 @@ from backend.services.data_builder import build_topology_data
 from backend.models.responses import TopologyResponse
 # We need to import the session manager to access the global session
 from backend import session_manager
+from .endpoints import TopologyEndpoints
 
-router = APIRouter(prefix="/api/topology", tags=["Topology"])
+router = APIRouter(prefix=TopologyEndpoints.PREFIX, tags=["Topology"])
 
-@router.get("/analyze") # This endpoint will trigger the analysis and return the topology data
+@router.get(TopologyEndpoints.ANALYZE) # This endpoint will trigger the analysis and return the topology data
 async def analyze_and_get_topology():
     # 1. Retrieve the active session from the manager
     current_session = session_manager.manager.get_session()

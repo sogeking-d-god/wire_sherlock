@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: wiresherlock_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: wiresherlock
+    # Persist database data even if container is deleted
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      # Use the root directory as context so it can see requirements.txt and api folder
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: wiresherlock_backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      # Internal Docker DNS allows using 'db' as the hostname
+      DATABASE_URL: postgresql://user:password@db:5432/wiresherlock
+    volumes:
+      - .:/app
+      - ./uploads:/app/uploads
+      - ./pcap_files:/app/pcap_files
+
+  frontend:
+    build:
+      # Frontend context is its own directory
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: wiresherlock_frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      # Sync source code for live development
+      - ./frontend:/app
+      # Keep node_modules inside the container to avoid conflicts with host
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

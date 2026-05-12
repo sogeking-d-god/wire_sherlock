@@ -3,9 +3,12 @@ from fastapi import APIRouter, HTTPException, File, UploadFile
 import shutil
 from backend import session_manager
 from api.config import DEMO_PATH, UPLOAD_DIR
-router = APIRouter(prefix="/api/pcap", tags=["PCAP Management"])
 
-@router.post("/select/{file_id}")
+from .endpoints import PCAPEndpoints
+
+router = APIRouter(prefix=PCAPEndpoints.PREFIX, tags=["PCAP"])
+
+@router.post(PCAPEndpoints.SELECT)
 async def select_file(file_id: str):
     target_path = ""
     if file_id == "demo-pcap":
@@ -22,15 +25,15 @@ async def select_file(file_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lifecycle Error: {str(e)}")
 
-@router.get("/active-session")
+@router.get(PCAPEndpoints.ACTIVE_SESSION)
 async def get_active_session():
     filename = session_manager.manager.get_active_filename()
     if not filename:
         return {"active": False}
 
-    return {"active": True, "filename": filename}
+    return {"active": True, "filename": filename, "file_id": filename}
 
-@router.post("/upload")
+@router.post(PCAPEndpoints.UPLOAD)
 async def upload_pcap(file: UploadFile = File(...)):
     if not file.filename.endswith(('.pcap', '.pcapng')):
         raise HTTPException(status_code=400, detail="Only PCAP files are supported.")
@@ -51,7 +54,7 @@ async def upload_pcap(file: UploadFile = File(...)):
     finally:
         file.file.close()
 
-@router.get("/files")
+@router.get(PCAPEndpoints.FILES)
 async def list_files():
     """Returns a list of all available PCAP files in the uploads directory."""
     try:

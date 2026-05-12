@@ -3,9 +3,10 @@ from backend.models.responses import MetricResponse
 from backend.services.data_builder import format_metric_for_frontend
 from backend import session_manager
 
-router = APIRouter(prefix="/api/metrics", tags=["Metrics"])
+from .endpoints import MetricsEndpoints
+router = APIRouter(prefix=MetricsEndpoints.PREFIX, tags=["Metrics"])
 
-@router.get("/{metric_id}", response_model=MetricResponse)
+@router.get(MetricsEndpoints.GET_METRIC, response_model=MetricResponse)
 async def get_traffic_metrics(metric_id: int):
     # 1. Retrieve the active session from the manager
     current_session = session_manager.manager.get_session()
