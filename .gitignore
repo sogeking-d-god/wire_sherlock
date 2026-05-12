@@ -72,3 +72,43 @@ c_pcap_processing/wiresherlock
 
 #vs code json config files
 *.json
+
+# Docker
+.dockerignore
+
+# Node / Frontend
+node_modules/
+dist/
+.eslintcache
+
+# Environment Variables (חשוב מאוד!)
+.env
+.env.local
+.env.*.local
+
+# Backend Uploads (כדי שלא תעלה בטעות קבצי PCAP שהעלית בבדיקה)
+uploads/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db# Docker
+.dockerignore
+
+# Node / Frontend
+node_modules/
+dist/
+.eslintcache
+
+# Environment Variables (חשוב מאוד!)
+.env
+.env.local
+.env.*.local
+
+# Backend Uploads (כדי שלא תעלה בטעות קבצי PCAP שהעלית בבדיקה)
+uploads/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
