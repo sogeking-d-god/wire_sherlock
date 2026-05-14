@@ -36,13 +36,22 @@ export function FileManagement() {
   const fetchFiles = async () => {
     try {
       setIsLoading(true);
-      // CHANGE: Use API_ENDPOINTS instead of manual string
-      const response = await fetch(API_ENDPOINTS.PCAP.FILES, {
-      });
+      const response = await fetch(API_ENDPOINTS.PCAP.FILES);
 
       if (response.ok) {
         const data = await response.json();
-        setFiles(data.files || []);
+
+        const rawFiles = Array.isArray(data) ? data : (data.files || []);
+
+        const formattedFiles: PcapFile[] = rawFiles.map((file: any) => ({
+          file_id: file.id,
+          filename: file.name,
+          upload_date: file.upload_date || new Date().toLocaleDateString(),
+          status: file.status || 'ready',
+          file_size: file.file_size
+        }));
+
+        setFiles(formattedFiles);
       } else {
         throw new Error('Failed to fetch file list');
       }
