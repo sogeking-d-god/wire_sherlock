@@ -16,6 +16,8 @@ class MetricType(IntEnum):
     SYN_COUNT = 2
     FIN_COUNT = 3
     RST_COUNT = 4
+    ACK_COUNT = 5
+    PUSH_COUNT = 6
 
 # =====================================================================
 # Low-Level IPC

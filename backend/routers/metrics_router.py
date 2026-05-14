@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from backend.models.responses import MetricResponse
 from backend.services.data_builder import format_metric_for_frontend
 from backend import session_manager
+from api.python.c_ipc_manager import MetricType
 
 from .endpoints import MetricsEndpoints
 router = APIRouter(prefix=MetricsEndpoints.PREFIX, tags=["Metrics"])
@@ -15,8 +16,13 @@ async def get_traffic_metrics(metric_id: int):
         raise HTTPException(status_code=400, detail="Session not initialized. Please call initialize_default first.")
 
     try:
+        metric_enum = MetricType(metric_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Unknown metric_id: {metric_id}")
+
+    try:
         # 2. Get the raw metric bins from the session
-        raw_metrics = current_session.get_metric_bins(metric_id)
+        raw_metrics = current_session.get_metric_bins(metric_enum)
 
         # 3. Format the metrics for the frontend
         return format_metric_for_frontend(metric_id, raw_metrics)

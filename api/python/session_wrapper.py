@@ -65,11 +65,18 @@ class WireSherlockSession:
         Requests binary statistical data from the C Engine via IPC.
         Returns a validated MetricResult object.
         """
+        if not isinstance(metric, MetricType):
+            try:
+                metric = MetricType(metric)
+            except ValueError:
+                raise ValueError(f"Unsupported metric identifier: {metric}")
+
         # Send command to C
         response = self.ipc.send_command(ipc_config.CMD_GET_BINS, {"metric_id": int(metric)})
 
         if not response or response.get("status") != ipc_config.STATUS_BINARY:
-            raise RuntimeError(f"C Engine failed to provide metric {metric.name}")
+            metric_name = metric.name if isinstance(metric, MetricType) else str(metric)
+            raise RuntimeError(f"C Engine failed to provide metric {metric_name}")
 
         # Extract metadata sent via JSON
         meta = response["data"]
