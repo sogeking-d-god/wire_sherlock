@@ -11,6 +11,7 @@ services:
     # Persist database data even if container is deleted
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
 
   backend:
     build:
