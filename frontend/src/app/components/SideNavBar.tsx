@@ -1,6 +1,6 @@
 import { LayoutDashboard, Network, BarChart3, MessageSquare, FileText, LogOut } from 'lucide-react';
-import imgUserProfileAvatar from "../../imports/Html→Body/1d11ad8865371c71a99fe1ea4b3f949c317248db.png";
 import { useFileContext } from '../context/FileContext';
+import imgUserProfileAvatar from '../../assets/user.png';
 import { toast } from 'sonner';
 
 

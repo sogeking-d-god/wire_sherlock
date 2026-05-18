@@ -69,6 +69,10 @@ pcap_files/
 
 #exec files
 c_pcap_processing/wiresherlock
+api/engine/core/c_worker
+
+# Build cache written by entrypoint.sh (content-hash manifest, not source)
+api/engine/.build_manifest
 
 #vs code json config files
 *.json

@@ -1,5 +1,5 @@
 import svgPaths from "./svg-z3gpm8882p";
-import imgUserProfileAvatar from "./1d11ad8865371c71a99fe1ea4b3f949c317248db.png";
+import imgUserProfileAvatar from "../../assets/user.png";
 
 function Container() {
   return (

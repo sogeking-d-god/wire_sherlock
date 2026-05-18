@@ -28,6 +28,9 @@ services:
     environment:
       # Internal Docker DNS allows using 'db' as the hostname
       DATABASE_URL: postgresql://user:password@db:5432/wiresherlock
+      # Force watchfiles (used by uvicorn --reload) to poll instead of inotify,
+      # matching Vite's usePolling:true fix for Windows→Docker volume mounts.
+      WATCHFILES_FORCE_POLLING: "true"
     volumes:
       - .:/app
       - ./uploads:/app/uploads

@@ -14,15 +14,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# COPY everything from the root into /app
-COPY . .
-
-# Build the C engine - Path is relative to /app
-# Ensure 'api/engine' exists in your root or backend folder
-RUN cd api/engine && make
+COPY backend/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 EXPOSE 8000
 
-# Run the FastAPI server
-# Using -m backend.main assuming main.py is inside the backend folder
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["python", "-m", "backend.main"]
