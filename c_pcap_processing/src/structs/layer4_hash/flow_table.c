@@ -1,26 +1,9 @@
 #include "flow_table.h"
+#include "xxhash.h"
 
-static uint32_t calculate_hash(flow_key_t *key)
+static uint32_t calculate_hash(const flow_key_t *key)
 {
-    uint32_t hash = FLOW_HASH_CONST;
-    uint32_t *src_ptr = (uint32_t *)key->src_ip.v6;
-    uint32_t *dst_ptr = (uint32_t *)key->dst_ip.v6;
-
-    // because ipv4 has 1 32 bit word, and ipv6 is the length of 4 ipv4, or the amount of bytes in ipv4 ^ 2
-    uint8_t seg_count = (key->ip_type == IP_VERSION_6) ? IPV4_BYTES : 1;
-
-    // because the key size is 32 bits, xor with each 32 bits segment of the address
-    for (int i = 0; i < seg_count; i++)
-    {
-        hash ^= src_ptr[i];
-        hash ^= dst_ptr[i];;
-    }
-
-    hash ^= key->src_port << PORT_BIT_COUNT | key->src_port;
-    hash ^= key->dst_port << PORT_BIT_COUNT | key->dst_port;
-    hash ^= key->protocol;
-    hash ^= key->ip_type;
-    return hash % FLOW_HASH_SIZE;
+    return (uint32_t)(XXH3_64bits(key, FLOW_KEY_SIZE) & (FLOW_HASH_SIZE - 1));
 }
 
 flow_table_t* flow_table_init()

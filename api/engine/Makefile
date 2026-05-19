@@ -33,6 +33,7 @@ CFLAGS = -Wall -Wextra -Wpedantic -Wshadow -g \
          -I$(SRC_PCAP)/structs/layer2_hash \
          -I$(SRC_PCAP)/structs/patricia_tree \
          -I$(SRC_PCAP)/structs/packet_store \
+         -I$(PCAP_ROOT)/vendor/xxhash \
          -D_DEFAULT_SOURCE
 
 LDFLAGS = -lpcap -lcjson -lm
@@ -56,6 +57,7 @@ SRCS = $(CORE_DIR)/main.c \
        $(SRC_PCAP)/structs/layer2_hash/mac_table.c \
        $(SRC_PCAP)/structs/patricia_tree/ip_tree.c \
        $(SRC_PCAP)/structs/packet_store/packet_store.c \
+       $(PCAP_ROOT)/vendor/xxhash/xxhash.c \
        $(SRC_ANALYTICS)/time_series.c \
        $(SRC_ANALYTICS)/pelt.c \
        $(SRC_ANALYTICS)/dbscan.c \

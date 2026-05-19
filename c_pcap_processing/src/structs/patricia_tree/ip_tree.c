@@ -281,3 +281,78 @@ void ip_tree_iterate(ip_tree_t *tree, ip_node_callback_fn callback, void *contex
         ip_tree_iterate_recursive(tree->root, callback, ip_addr_type, context);
     }
 }
+
+/* Returns TRUE iff the first `prefix_len` MSB-first bits of `a` and `b` match. */
+static boolean_e ip_tree_prefix_matches(const uint8_t *a, const uint8_t *b, uint8_t prefix_len)
+{
+    uint8_t full_bytes = prefix_len / BITS_IN_BYTE;
+    uint8_t remaining_bits = prefix_len % BITS_IN_BYTE;
+    uint8_t tail_mask;
+
+    if (full_bytes > 0 && memcmp(a, b, full_bytes) != 0)
+    {
+        return FALSE;
+    }
+    if (remaining_bits > 0)
+    {
+        tail_mask = (uint8_t)(0xFF << (BITS_IN_BYTE - remaining_bits));
+        if ((a[full_bytes] & tail_mask) != (b[full_bytes] & tail_mask))
+        {
+            return FALSE;
+        }
+    }
+    return TRUE;
+}
+
+ip_tree_ret_codes_e ip_tree_find_subnet(ip_tree_t *tree,
+                                        const uint8_t *subnet_ip,
+                                        uint8_t prefix_len,
+                                        ip_node_callback_fn callback,
+                                        void *context)
+{
+    ip_tree_node_t *node;
+    uint16_t total_bits;
+    uint8_t bit_mask;
+    uint8_t byte_index;
+    uint8_t bit_val;
+    ip_version_e ip_addr_type;
+
+    if (!tree || !subnet_ip || !callback)
+    {
+        return IP_TREE_RET_NULL_TREE_ERROR;
+    }
+
+    total_bits = (uint16_t)tree->ip_addr_byte_count * BITS_IN_BYTE;
+    if (prefix_len > total_bits)
+    {
+        return IP_TREE_RET_INVALID_PREFIX_ERROR;
+    }
+
+    if (tree->root == NULL)
+    {
+        return IP_TREE_RET_SUCCESS;
+    }
+
+    /* Descend along subnet_ip until we either hit a leaf or reach a node whose
+       diff_bit_index is at/past the prefix boundary (below which all leaves
+       share the same prefix bits and need a single verification). */
+    node = tree->root;
+    while (node->children[0] != NULL && node->diff_bit_index < prefix_len)
+    {
+        byte_index = node->diff_bit_index / BITS_IN_BYTE;
+        bit_mask = IP_TREE_BIT_MASK_START_VAL >> (node->diff_bit_index % BITS_IN_BYTE);
+        bit_val = (subnet_ip[byte_index] & bit_mask) ? 1 : 0;
+        node = node->children[bit_val];
+    }
+
+    /* Verify the stopped subtree's representative IP matches subnet_ip in the
+       first prefix_len bits. prefix_len == 0 trivially matches. */
+    if (prefix_len > 0 && !ip_tree_prefix_matches(node->ip, subnet_ip, prefix_len))
+    {
+        return IP_TREE_RET_SUCCESS;
+    }
+
+    ip_addr_type = (tree->ip_addr_byte_count == IPV4_BYTES) ? IP_VERSION_4 : IP_VERSION_6;
+    ip_tree_iterate_recursive(node, callback, ip_addr_type, context);
+    return IP_TREE_RET_SUCCESS;
+}

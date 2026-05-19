@@ -5,7 +5,6 @@
 #include "parser.h"
 
 #define FLOW_HASH_SIZE 2048
-#define FLOW_HASH_CONST 0x12345678
 #define DEVICES_IN_FLOW 2
 #define PORT_BIT_COUNT 16
 

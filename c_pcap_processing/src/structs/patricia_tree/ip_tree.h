@@ -41,6 +41,7 @@ typedef enum
     IP_TREE_RET_SUCCESS = 0,
     IP_TREE_RET_MALLOC_FAIL_ERROR = -1,
     IP_TREE_RET_NULL_TREE_ERROR = -2,
+    IP_TREE_RET_INVALID_PREFIX_ERROR = -3,
 }ip_tree_ret_codes_e;
 
     typedef struct
@@ -64,5 +65,17 @@ void ip_tree_print_report(ip_tree_t *tree);
 
 typedef void (*ip_node_callback_fn)(ip_tree_node_t *node, ip_version_e ip_addr_type, void *context);
 void ip_tree_iterate(ip_tree_t *tree, ip_node_callback_fn callback, void *context);
+
+/*
+ * Invoke `callback` on every leaf whose stored IP falls inside the CIDR block
+ * (subnet_ip / prefix_len). subnet_ip is in network byte order and must point
+ * to tree->ip_addr_byte_count bytes. prefix_len is in bits: 0..32 for IPv4,
+ * 0..128 for IPv6. prefix_len == 0 matches every leaf.
+ */
+ip_tree_ret_codes_e ip_tree_find_subnet(ip_tree_t *tree,
+                                        const uint8_t *subnet_ip,
+                                        uint8_t prefix_len,
+                                        ip_node_callback_fn callback,
+                                        void *context);
 
 #endif

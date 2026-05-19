@@ -1,19 +1,12 @@
 #include "mac_table.h"
+#include "xxhash.h"
 
 uint8_t empty_mac_addr_g [ETH_ALEN] = {0};
 
 
 uint32_t mac_table_calculate_hash(const uint8_t *mac)
 {
-    uint32_t hash = MAC_HASH_CONST;
-
-    for (int i = 0; i < ETH_ALEN; i++)
-    {
-        // djb2 hash algorithm (each byte is multiplied by 33)
-        hash = ((hash << DJB2_SHIFT) + hash) + mac[i];
-    }
-    // faster hash % MAC_HASH_SIZE (since MAC_HASH_SIZE is a power of 2)
-    return hash & (MAC_HASH_SIZE - 1);
+    return (uint32_t)(XXH3_64bits(mac, ETH_ALEN) & (MAC_HASH_SIZE - 1));
 }
 
 mac_table_t* mac_table_init()

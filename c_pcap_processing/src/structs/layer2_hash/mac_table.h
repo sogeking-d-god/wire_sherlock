@@ -5,8 +5,6 @@
 
 #define MAC_ADDR_SIZE 18
 #define MAC_HASH_SIZE 1024
-#define MAC_HASH_CONST 5381
-#define DJB2_SHIFT 5
 
 #define MAC_NODE_SIZE sizeof(mac_node_t)
 #define MAC_TABLE_SIZE sizeof(mac_table_t)
