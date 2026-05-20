@@ -7,17 +7,31 @@
 #include "ipc_config.h"
 #include "parser_wrapper.h"
 #include "metrics_wrapper.h"
+#include "l7_handler.h"
 
+/**
+ * @brief Runs the main engine command loop, processing JSON commands from the client.
+ *
+ * Listens for incoming commands over the socket and dispatches them to the
+ * appropriate handlers. Exits when the client disconnects or sends CMD_EXIT.
+ *
+ * @param client_sock The connected client socket file descriptor.
+ * @param pcap_path Path to the PCAP file to analyse when CMD_START_ANALYSIS is received.
+ */
 void run_engine_loop(int client_sock, const char *pcap_path)
 {
     file_analysis_context_t *core = NULL;
     int running = 1;
+    cJSON *request;
+    cJSON *cmd;
+    cJSON *results;
 
     printf("[Controller] Engine loop started. Ready for commands.\n");
 
     while (running)
     {
-        cJSON *request = receive_json(client_sock);
+        request = receive_json(client_sock);
+
         if (!request)
         {
             printf("[Controller] Client disconnected or protocol error.\n");
@@ -25,10 +39,10 @@ void run_engine_loop(int client_sock, const char *pcap_path)
         }
         else
         {
-            cJSON *cmd = cJSON_GetObjectItem(request, "cmd");
+            cmd = cJSON_GetObjectItem(request, "cmd");
+
             if (cJSON_IsString(cmd) && cmd->valuestring)
             {
-
                 // 1. PING
                 if (strcmp(cmd->valuestring, CMD_PING) == 0)
                 {
@@ -48,7 +62,12 @@ void run_engine_loop(int client_sock, const char *pcap_path)
 
                     if (parse_pcap_file(core, pcap_path) == 0)
                     {
-                        cJSON *results = wrap_parser_results(core);
+                        // Milestone 3.1: trigger L7 sweep inline after L4 parse so
+                        // we can observe HTTP boundary detection logs. A dedicated
+                        // CMD_ANALYZE_L7 command will be added in Milestone 3.3.
+                        l7_handler_run(core->flow_table, pcap_path);
+
+                        results = wrap_parser_results(core);
                         send_api_response(client_sock, STATUS_SUCCESS, results);
                         printf("[Controller] Analysis complete and sent to Python.\n");
                     }
@@ -78,6 +97,7 @@ void run_engine_loop(int client_sock, const char *pcap_path)
                     running = 0;
                 }
             }
+
             cJSON_Delete(request);
         }
     }
@@ -86,5 +106,6 @@ void run_engine_loop(int client_sock, const char *pcap_path)
     {
         core_free(core);
     }
+
     printf("[Controller] Engine loop finished.\n");
 }

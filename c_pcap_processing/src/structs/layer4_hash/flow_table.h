@@ -61,6 +61,7 @@ typedef struct message_node
     uint32_t total_packet_len; // Total length of the packet including headers
     uint32_t packet_start_pointer;// Pointer to the start of the packet in the pcap file
     uint8_t tcp_flags;
+    uint8_t dev_idx; // 0 or 1 - which device in the flow sent this message (for L7 per-direction streams)
 
     struct message_node *next;
 } message_node_t;
@@ -103,6 +104,8 @@ typedef struct
     ip_version_e ip_type;
 } flow_key_t;
 
+struct l7_session_state_s; // forward decl - defined in src/layers/l7/l7_handler.h
+
 typedef struct session_node
 {
     struct timeval timestamp;
@@ -112,6 +115,8 @@ typedef struct session_node
     flow_device_t devices[DEVICES_IN_FLOW]; // Device-specific data for both endpoints, (ordered by increasing IP)
 
     messages_linked_list_t messages;
+
+    struct l7_session_state_s *l7; // NULL until L7 analysis runs
 
     // Pointer to the next flow in the bucket (for collision handling)
     struct session_node *next;

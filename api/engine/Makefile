@@ -28,6 +28,8 @@ CFLAGS = -Wall -Wextra -Wpedantic -Wshadow -g \
          -I$(SRC_PCAP)/layers/l4/tcp \
          -I$(SRC_PCAP)/layers/l4/udp \
          -I$(SRC_PCAP)/layers/l4/icmp \
+         -I$(SRC_PCAP)/layers/l7 \
+         -I$(SRC_PCAP)/layers/l7/http \
          -I$(PCAP_ROOT)/helper \
          -I$(SRC_PCAP)/structs/layer4_hash \
          -I$(SRC_PCAP)/structs/layer2_hash \
@@ -52,6 +54,8 @@ SRCS = $(CORE_DIR)/main.c \
        $(SRC_PCAP)/layers/l4/tcp/tcp_handler.c \
        $(SRC_PCAP)/layers/l4/udp/udp_handler.c \
        $(SRC_PCAP)/layers/l4/icmp/icmp_handler.c \
+       $(SRC_PCAP)/layers/l7/l7_handler.c \
+       $(SRC_PCAP)/layers/l7/http/http_detector.c \
        $(PCAP_ROOT)/helper/print_packet.c \
        $(SRC_PCAP)/structs/layer4_hash/flow_table.c \
        $(SRC_PCAP)/structs/layer2_hash/mac_table.c \
