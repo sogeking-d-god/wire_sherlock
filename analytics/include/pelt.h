@@ -27,7 +27,10 @@ typedef struct
 } prefix_sums_t;
 
 /**
-* @brief Represents a single detected segment between two changepoints.
+ * @brief Represents a single detected segment between two changepoints.
+ *        z_score is the segment-vs-global Z statistic (filled by stats_analyze_with_standard_error).
+ *        ssmd is the Strictly Standardized Mean Difference vs the immediately preceding segment
+ *        (filled by stats_compute_ssmd_against_prev). The first segment has ssmd = 0.
  */
 typedef struct
 {
@@ -36,7 +39,8 @@ typedef struct
     double mean;
     double variance;
     double z_score;
-    int is_anomaly; // flag: 1 if |z_score| > sensitivity
+    double ssmd;
+    int is_anomaly;
 } pelt_segment_t;
 
 /**

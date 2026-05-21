@@ -42,3 +42,43 @@ void stats_ewma_filter(double *input, double *output, uint64_t n, double alpha)
     }
 }
 
+void stats_compute_ssmd_against_prev(pelt_segments_list_t *segments)
+{
+    int i;
+    pelt_segment_t *current_segment;
+    pelt_segment_t *previous_segment;
+    double mean_difference;
+    double combined_variance;
+    double denominator;
+
+    if (segments != NULL && segments->segments != NULL && segments->count > 0)
+    {
+        // First segment has no predecessor; SSMD is defined as 0 (baseline).
+        segments->segments[0].ssmd = 0.0;
+
+        for (i = 1; i < segments->count; i++)
+        {
+            current_segment = &segments->segments[i];
+            previous_segment = &segments->segments[i - 1];
+
+            mean_difference = current_segment->mean - previous_segment->mean;
+            if (mean_difference < 0.0)
+            {
+                mean_difference = -mean_difference;
+            }
+
+            combined_variance = current_segment->variance + previous_segment->variance;
+            denominator = sqrt(combined_variance);
+
+            if (denominator < STATS_SSMD_DENOM_EPSILON)
+            {
+                current_segment->ssmd = 0.0;
+            }
+            else
+            {
+                current_segment->ssmd = mean_difference / denominator;
+            }
+        }
+    }
+}
+
