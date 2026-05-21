@@ -5,8 +5,13 @@
 #include "l7_handler.h"
 
 #define HTTP_DETECTOR_PREFIX_BYTES 16
+#define HTTP_DETECTOR_REQUEST_LINE_SCAN_BYTES 512
+#define HTTP_DETECTOR_LIKELY_PORT_80   80
+#define HTTP_DETECTOR_LIKELY_PORT_8080 8080
+#define HTTP_DETECTOR_LIKELY_PORT_8000 8000
 
-typedef enum {
+typedef enum
+{
     HTTP_KIND_NONE = 0,
     HTTP_KIND_REQUEST,
     HTTP_KIND_RESPONSE
@@ -34,5 +39,31 @@ boolean_e http_detector_check_prefix(const uint8_t *buf,
                                      http_kind_e *out_kind,
                                      const char **out_verb,
                                      l7_protocol_e *out_proto);
+
+/**
+ * @brief Returns TRUE if the given TCP port is one of the commonly-used HTTP ports.
+ *
+ * Used by the hybrid port-vs-payload gate: matches on a likely port let the
+ * caller accept HTTP/1.x detection on a verb prefix alone, while non-matching
+ * ports require stronger payload confirmation via http_detector_confirm_request_line.
+ *
+ * @param port TCP port in host byte order.
+ * @return TRUE if port is 80, 8080, or 8000.
+ */
+boolean_e http_detector_is_likely_port(uint16_t port);
+
+/**
+ * @brief Confirms an HTTP/1.x request line by finding the version token after the verb.
+ *
+ * A real HTTP request line ends with "HTTP/1.x\r\n" before the first \r\n.
+ * Scans the first line of buf (up to the first \r\n) for the "HTTP/1." token
+ * so that a payload like "GET stuff" (matches verb prefix but isn't HTTP) is
+ * rejected on non-standard ports.
+ *
+ * @param buf payload bytes (need not be NUL-terminated).
+ * @param len number of valid bytes in buf.
+ * @return TRUE if "HTTP/1." appears in the first line, FALSE otherwise.
+ */
+boolean_e http_detector_confirm_request_line(const uint8_t *buf, size_t len);
 
 #endif

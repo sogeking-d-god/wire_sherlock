@@ -3,7 +3,8 @@
 
 #include "common.h"
 
-typedef enum {
+typedef enum
+{
     L7_PROTO_UNKNOWN = 0,
     L7_PROTO_HTTP1,
     L7_PROTO_TLS,
@@ -11,27 +12,25 @@ typedef enum {
     L7_PROTO_NOT_TEXT
 } l7_protocol_e;
 
-typedef struct http_message_record {
-    uint8_t dev_idx;
-    uint32_t start_msg_seq;
-    uint32_t header_byte_len;
-    struct http_message_record *next;
-} http_message_record_t;
-
-typedef struct l7_session_state_s {
-    l7_protocol_e proto;
-    http_message_record_t *messages_dev0;
-    http_message_record_t *messages_dev1;
-    uint32_t attack_count;
-} l7_session_state_t;
-
-typedef enum {
+typedef enum
+{
     L7_HANDLER_SUCCESS = 0,
     L7_HANDLER_NULL_ARG = -1,
-    L7_HANDLER_PCAP_OPEN_FAILED = -2
+    L7_HANDLER_PCAP_OPEN_FAILED = -2,
+    L7_HANDLER_SIG_INIT_FAILED = -3
 } l7_handler_ret_e;
 
+/**
+ * @brief Runs the L7 sweep over every TCP session in the flow table.
+ *
+ * Opens the PCAP file, iterates each TCP session, feeds payload bytes
+ * into the per-session HTTP reassembler, and scans each completed HTTP
+ * message with the signature engine. Logs all hits to stderr.
+ *
+ * @param table The flow table to sweep.
+ * @param pcap_path Path to the PCAP file for re-reading payload bytes.
+ * @return L7_HANDLER_SUCCESS on success, error code on failure.
+ */
 l7_handler_ret_e l7_handler_run(flow_table_t *table, const char *pcap_path);
-void l7_session_state_free(l7_session_state_t *state);
 
 #endif

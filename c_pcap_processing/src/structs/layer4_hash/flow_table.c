@@ -1,6 +1,6 @@
 #include "flow_table.h"
 #include "xxhash.h"
-#include "l7_handler.h"
+#include "http_reassembler.h"
 
 /**
  * @brief Computes the hash table bucket index for a flow key.
@@ -200,7 +200,7 @@ void flow_table_free_session(session_node_t *session)
         flow_table_free_messages(session->devices[0].ooo_buffer);
         flow_table_free_messages(session->devices[1].ooo_buffer);
 
-        l7_session_state_free(session->l7);
+        http_reassembler_session_free(session->l7);
 
         // Free the session node
         free(session);

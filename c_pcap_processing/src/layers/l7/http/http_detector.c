@@ -111,3 +111,80 @@ boolean_e http_detector_check_prefix(const uint8_t *buf,
 
     return found;
 }
+
+/**
+ * @brief Returns TRUE if the given TCP port is one of the commonly-used HTTP ports.
+ *
+ * @param port TCP port in host byte order.
+ * @return TRUE if port is 80, 8080, or 8000.
+ */
+boolean_e http_detector_is_likely_port(uint16_t port)
+{
+    boolean_e ret_val;
+
+    if (port == HTTP_DETECTOR_LIKELY_PORT_80 ||
+        port == HTTP_DETECTOR_LIKELY_PORT_8080 ||
+        port == HTTP_DETECTOR_LIKELY_PORT_8000)
+    {
+        ret_val = TRUE;
+    }
+    else
+    {
+        ret_val = FALSE;
+    }
+
+    return ret_val;
+}
+
+/**
+ * @brief Confirms an HTTP/1.x request line by finding "HTTP/1." before the first CRLF.
+ *
+ * @param buf payload bytes (need not be NUL-terminated).
+ * @param len number of valid bytes in buf.
+ * @return TRUE if "HTTP/1." appears in the first line, FALSE otherwise.
+ */
+boolean_e http_detector_confirm_request_line(const uint8_t *buf, size_t len)
+{
+    boolean_e ret_val;
+    size_t scan_limit;
+    size_t byte_idx;
+    boolean_e crlf_seen;
+
+    ret_val = FALSE;
+    crlf_seen = FALSE;
+
+    if (buf == NULL || len < HTTP_RESPONSE_PREFIX_LEN)
+    {
+        ret_val = FALSE;
+    }
+    else
+    {
+        // Cap the scan at the configured request-line window or buffer length.
+        if (len > HTTP_DETECTOR_REQUEST_LINE_SCAN_BYTES)
+        {
+            scan_limit = HTTP_DETECTOR_REQUEST_LINE_SCAN_BYTES;
+        }
+        else
+        {
+            scan_limit = len;
+        }
+
+        // Walk forward until CRLF, looking for "HTTP/1." before it.
+        byte_idx = 0;
+        while (byte_idx + 1 < scan_limit && crlf_seen == FALSE && ret_val == FALSE)
+        {
+            if (buf[byte_idx] == '\r' && buf[byte_idx + 1] == '\n')
+            {
+                crlf_seen = TRUE;
+            }
+            else if ((byte_idx + HTTP_RESPONSE_PREFIX_LEN) <= scan_limit &&
+                     memcmp(buf + byte_idx, HTTP_RESPONSE_PREFIX, HTTP_RESPONSE_PREFIX_LEN) == 0)
+            {
+                ret_val = TRUE;
+            }
+            byte_idx++;
+        }
+    }
+
+    return ret_val;
+}

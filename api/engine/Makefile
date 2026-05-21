@@ -56,6 +56,8 @@ SRCS = $(CORE_DIR)/main.c \
        $(SRC_PCAP)/layers/l4/icmp/icmp_handler.c \
        $(SRC_PCAP)/layers/l7/l7_handler.c \
        $(SRC_PCAP)/layers/l7/http/http_detector.c \
+       $(SRC_PCAP)/layers/l7/http/http_signatures.c \
+       $(SRC_PCAP)/layers/l7/http/http_reassembler.c \
        $(PCAP_ROOT)/helper/print_packet.c \
        $(SRC_PCAP)/structs/layer4_hash/flow_table.c \
        $(SRC_PCAP)/structs/layer2_hash/mac_table.c \

@@ -8,6 +8,7 @@
 #include "parser_wrapper.h"
 #include "metrics_wrapper.h"
 #include "l7_handler.h"
+#include "http_signatures.h"
 
 /**
  * @brief Runs the main engine command loop, processing JSON commands from the client.
@@ -106,6 +107,10 @@ void run_engine_loop(int client_sock, const char *pcap_path)
     {
         core_free(core);
     }
+
+    // Release compiled attack-signature regex resources held in the static
+    // registry. Safe no-op if signatures were never initialized.
+    http_signatures_destroy();
 
     printf("[Controller] Engine loop finished.\n");
 }

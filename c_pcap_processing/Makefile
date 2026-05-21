@@ -33,6 +33,8 @@ SRCS = main.c \
        src/layers/l4/icmp/icmp_handler.c \
        src/layers/l7/l7_handler.c \
        src/layers/l7/http/http_detector.c \
+       src/layers/l7/http/http_signatures.c \
+       src/layers/l7/http/http_reassembler.c \
        helper/print_packet.c\
        src/structs/layer4_hash/flow_table.c\
        src/structs/layer2_hash/mac_table.c\
