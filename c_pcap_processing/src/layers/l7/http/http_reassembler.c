@@ -12,19 +12,6 @@
 #define HEADER_NAME_CONNECTION "connection:"
 #define HEADER_NAME_CONNECTION_LEN 11
 
-/**
- * @brief Allocates and zero-initializes a new reassembler session state.
- *
- * @return Pointer to the new session, or NULL on allocation failure.
- */
-http_reassembler_session_t *http_reassembler_session_alloc(void)
-{
-    http_reassembler_session_t *ret_val;
-
-    ret_val = (http_reassembler_session_t *)calloc(1, sizeof(http_reassembler_session_t));
-
-    return ret_val;
-}
 
 /**
  * @brief Releases a reassembler session state. Safe with NULL.
@@ -94,9 +81,7 @@ size_t http_reassembler_consume_completed_message(http_reassembler_session_t *se
 
         if (leftover_count > 0)
         {
-            memmove(direction->message_buffer,
-                    direction->message_buffer + direction->current_message_end_offset,
-                    leftover_count);
+            memmove(direction->message_buffer, direction->message_buffer + direction->current_message_end_offset, leftover_count);
         }
 
         direction->current_state = HTTP_REASSEMBLY_STATE_IDLE;
@@ -425,9 +410,7 @@ static boolean_e is_bodyless_default_method(const uint8_t *buffer, size_t buffer
  * @param payload_len Source length.
  * @return Number of bytes actually appended.
  */
-static size_t append_payload_capped(http_direction_reassembler_t *direction,
-                                    const uint8_t *payload,
-                                    size_t payload_len)
+static size_t append_payload_capped(http_direction_reassembler_t *direction, const uint8_t *payload, size_t payload_len)
 {
     size_t space_left;
     size_t to_copy;
@@ -526,17 +509,13 @@ static void transition_after_headers(http_direction_reassembler_t *direction)
  * @param payload Bytes to feed.
  * @param payload_len Length of payload.
  */
-static void handle_state_collecting_headers(http_direction_reassembler_t *direction,
-                                            const uint8_t *payload,
-                                            size_t payload_len)
+static void handle_state_collecting_headers(http_direction_reassembler_t *direction, const uint8_t *payload,size_t payload_len)
 {
     size_t end_offset;
 
     (void)append_payload_capped(direction, payload, payload_len);
 
-    if (find_headers_end(direction->message_buffer,
-                         direction->bytes_in_buffer,
-                         &end_offset) == TRUE)
+    if (find_headers_end(direction->message_buffer, direction->bytes_in_buffer, &end_offset) == TRUE)
     {
         direction->headers_end_offset = end_offset;
         transition_after_headers(direction);
@@ -647,14 +626,7 @@ static void handle_state_collecting_body_until_close(http_direction_reassembler_
  * @param out_message_len On COMPLETE/TRUNCATED, set to the byte count.
  * @return Feed result describing the new state of the direction.
  */
-http_reassembly_feed_result_e http_reassembler_feed_payload(
-    http_reassembler_session_t *session,
-    uint8_t dev_idx,
-    const uint8_t *payload,
-    size_t payload_len,
-    boolean_e fin_seen,
-    const uint8_t **out_message_bytes,
-    size_t *out_message_len)
+http_reassembly_feed_result_e http_reassembler_feed_payload(http_reassembler_session_t *session, uint8_t dev_idx, const uint8_t *payload, size_t payload_len, boolean_e fin_seen, const uint8_t **out_message_bytes, size_t *out_message_len)
 {
     http_reassembly_feed_result_e ret_val;
     http_direction_reassembler_t *direction;
@@ -662,11 +634,8 @@ http_reassembly_feed_result_e http_reassembler_feed_payload(
 
     ret_val = HTTP_REASSEMBLY_FEED_RESULT_NEED_MORE;
 
-    // A NULL payload is allowed iff payload_len == 0 (caller is draining prebuffered
-    // pipelined bytes that were memmoved into the buffer by consume_completed_message).
-    if (session == NULL || dev_idx >= DEVICES_IN_FLOW ||
-        out_message_bytes == NULL || out_message_len == NULL ||
-        (payload == NULL && payload_len > 0))
+    // A NULL payload is allowed if payload_len == 0 (caller is draining prebuffered pipelined bytes that were memmoved into the buffer by consume_completed_message).
+    if (session == NULL || dev_idx >= DEVICES_IN_FLOW || out_message_bytes == NULL || out_message_len == NULL || (payload == NULL && payload_len > 0))
     {
         ret_val = HTTP_REASSEMBLY_FEED_RESULT_INVALID_ARG;
     }
@@ -711,15 +680,13 @@ http_reassembly_feed_result_e http_reassembler_feed_payload(
         if (direction->current_state == HTTP_REASSEMBLY_STATE_COMPLETE)
         {
             *out_message_bytes = direction->message_buffer;
-            // Report exactly the current message; any pipelined leftover stays
-            // in the buffer for http_reassembler_consume_completed_message to shift.
+            // Report exactly the current message, any pipelined leftover stays in the buffer for http_reassembler_consume_completed_message to shift.
             if (direction->current_message_end_offset > 0)
             {
                 *out_message_len = direction->current_message_end_offset;
             }
             else
             {
-                // Defensive: should always be set by the handler that transitioned to COMPLETE.
                 *out_message_len = direction->bytes_in_buffer;
             }
             direction->messages_completed++;

@@ -7,11 +7,8 @@ static void insert_sorted_ooo(session_node_t *session, message_node_t *new_msg, 
 
 /**
  * @brief Returns the last open session for the flow, or creates a new one if needed.
- *
  * A new session is created when there is no existing session, the last session
  * timed out, or a new SYN arrives on an already-closed session.
- *
- * // Unhandled edge cases where the end of the session wasnt detected
  *
  * @param node The flow node that owns the session chain.
  * @param info Parsed packet information for the current packet.
@@ -26,6 +23,7 @@ static session_node_t *get_or_create_tcp_session(flow_node_t *node, packet_info_
     boolean_e is_new_syn = ((flags & TH_SYN) && !(flags & TH_ACK));
     session_node_t *new_session;
 
+    // if session already exists, check for timeout
     if (session)
     {
         timersub(&info->cap_info.ts, &session->timestamp, &diff);
@@ -39,6 +37,7 @@ static session_node_t *get_or_create_tcp_session(flow_node_t *node, packet_info_
         }
     }
 
+    // create new session if no session exists, last session timed out, or new SYN on closed session
     if (!session || is_timeout || (is_new_syn && session->end_state != FLOW_TABLE_TCP_END_STATE_NOT_CLOSED))
     {
         new_session = (session_node_t *)calloc(1, SESSION_NODE_SIZE);
@@ -89,11 +88,8 @@ static void update_tcp_state(session_node_t *session, packet_info_t *info, flow_
         else if ((flags & TH_SYN) && (flags & TH_ACK) && (session->start_state == FLOW_TABLE_TCP_START_STATE_SYN_SENT))
         {
             session->start_state = FLOW_TABLE_TCP_START_STATE_SYN_ACK_SENT;
-            // Initialize the responder's next_expected_seq from the SYN-ACK's ISN.
-            // The SYN itself consumes one sequence number, so the first data byte
-            // will arrive with seq = ISN + 1.
-            session->devices[first_dev].data.next_expected_seq =
-                session->devices[first_dev].data.last_seq + 1;
+            // responders next_expected_seq has already been updated outside the function, because it was the first message from that device that had data.
+            // session->devices[first_dev].data.next_expected_seq = session->devices[first_dev].data.last_seq + 1;
         }
         else if ((flags & TH_ACK) && (session->start_state == FLOW_TABLE_TCP_START_STATE_SYN_ACK_SENT))
         {
@@ -167,8 +163,7 @@ static void drain_ooo_buffer(session_node_t *session, uint8_t dev_idx)
     message_node_t *ooo_temp;
     uint32_t expected_after_new_msg;
 
-    while (session->devices[dev_idx].ooo_buffer != NULL &&
-           (expected - session->devices[dev_idx].ooo_buffer->seq_num < (uint32_t)TCP_SEQ_HALF))
+    while (session->devices[dev_idx].ooo_buffer != NULL && (expected - session->devices[dev_idx].ooo_buffer->seq_num < (uint32_t)TCP_SEQ_HALF))
     {
         // detatch from out of order list
         ooo_temp = session->devices[dev_idx].ooo_buffer;
@@ -206,8 +201,7 @@ static void drain_ooo_buffer(session_node_t *session, uint8_t dev_idx)
  * @param dev_idx Device index of the sender.
  * @return Status code indicating success or the type of failure.
  */
-flow_table_process_packet_return_e tcp_handler_process_flow_update(flow_node_t *node, packet_info_t *info,
-                                                                    const uint8_t *tcp_data, flow_table_first_device_e dev_idx)
+flow_table_process_packet_return_e tcp_handler_process_flow_update(flow_node_t *node, packet_info_t *info, const uint8_t *tcp_data, flow_table_first_device_e dev_idx)
 {
     flow_table_process_packet_return_e ret_val = FLOW_TABLE_PROCESS_PACKET_SUCCESS;
     struct tcphdr *tcp_header;
@@ -247,13 +241,12 @@ flow_table_process_packet_return_e tcp_handler_process_flow_update(flow_node_t *
             expected_after_new_msg = seq + payload_len + control;
 
             // Mid-stream pickup: if this device's seq was never initialized 
-            // and this packet actually advances the sequence space => anchor to it.  to not alert retransmission.
-            if (expected == 0 &&
-                (payload_len + control) > 0 &&
-                session->start_state != FLOW_TABLE_TCP_START_STATE_HANDSHAKE_COMPLETE)
+            // and this packet actually advances the sequence space => anchor to it.  (to not alert retransmission).
+            if (!session->devices[dev_idx].data.seq_initialized && (payload_len + control) > 0)
             {
                 session->devices[dev_idx].data.next_expected_seq = seq;
                 expected = seq;
+                session->devices[dev_idx].data.seq_initialized = TRUE;
             }
 
             // Create new message node
@@ -270,21 +263,19 @@ flow_table_process_packet_return_e tcp_handler_process_flow_update(flow_node_t *
                 msg->dev_idx = (uint8_t)dev_idx;
                 msg->next = NULL;
 
-                // First message in flow — if it advances the sequence
-                // space. to not alert retransmission.
+                // First message in flow
                 if (!session->messages.head)
                 {
                     session->messages.head = msg;
                     session->messages.tail = msg;
+                    // if it doeasnt have data the next expected seq will be updated in the future in the mid stream pickup condition, when a message with data arrives.
                     if ((payload_len + control) > 0)
                     {
                         session->devices[dev_idx].data.next_expected_seq = expected_after_new_msg;
                     }
                 }
                 // in order message in flow
-                else if (expected - seq < (uint32_t)TCP_SEQ_HALF &&
-                         (expected_after_new_msg - expected) < (uint32_t)TCP_SEQ_HALF &&
-                         expected_after_new_msg != expected)
+                else if (expected - seq < (uint32_t)TCP_SEQ_HALF && (expected_after_new_msg - expected) < (uint32_t)TCP_SEQ_HALF && expected_after_new_msg != expected)
                 {
                     trim_message_node(msg, expected);
 
@@ -405,9 +396,10 @@ static uint32_t calculate_next_seq(message_node_t *msg)
  * @brief Inserts a message into the per-device out-of-order buffer, sorted by sequence distance.
  *
  * Sorts by distance from the expected sequence number to correctly handle
- * TCP sequence number wrap-around. Duplicate segments are dropped; if the
+ * TCP sequence number wrap-around. Duplicate segments are dropped, if the
  * incoming segment covers more data than an existing one with the same seq,
  * the existing one is replaced.
+ * overlap of message with previos message is handled in the drain function.
  *
  * @param session The session that owns the OOO buffer.
  * @param new_msg The out-of-order message to insert.
@@ -430,26 +422,27 @@ static void insert_sorted_ooo(session_node_t *session, message_node_t *new_msg, 
         curr = &((*curr)->next);
     }
 
+    // calculate next seq for new msg and current msg for later use in duplicate detection
     if (*curr != NULL)
     {
         new_msg_next_seq = calculate_next_seq(new_msg);
         curr_msg_next_seq = calculate_next_seq(*curr);
     }
 
-    // detect dups
+    // the new message should be inserted before the current message. Check for duplicates (same seq) and if not duplicate insert.
     if (*curr == NULL || (*curr)->seq_num != new_msg->seq_num)
     {
         new_msg->next = *curr;
         *curr = new_msg;
     }
-    // message that has the same seq but is longer
-    else if (new_msg_next_seq - curr_msg_next_seq < (uint32_t)TCP_SEQ_HALF &&
-             new_msg_next_seq != curr_msg_next_seq)
+    // message that has the same seq but is longer => replace the existing one
+    else if (new_msg_next_seq - curr_msg_next_seq < (uint32_t)TCP_SEQ_HALF && new_msg_next_seq != curr_msg_next_seq)
     {
         new_msg->next = (*curr)->next;
         free(*curr);
         *curr = new_msg;
     }
+    // else: duplicate segment with same coverage - drop new message
     else
     {
         free(new_msg);

@@ -11,7 +11,6 @@ static http_signature_entry_t g_http_signature_registry[] =
         "sqli_select_from",
         HTTP_ATTACK_CLASS_SQLI,
         // Match a space, tab, %20, or + between tokens to catch both literal
-        // and URL-encoded query-string SQLi attacks.
         "select([[:space:]]|%20|\\+).*from",
         {0},
         FALSE
@@ -96,9 +95,8 @@ http_sig_ret_e http_signatures_init(void)
     {
         while (entry_idx < g_http_signature_count && compile_failed == FALSE)
         {
-            regcomp_ret = regcomp(&g_http_signature_registry[entry_idx].compiled_pattern,
-                                  g_http_signature_registry[entry_idx].pattern_source,
-                                  REG_EXTENDED | REG_ICASE);
+            // flags: case-insensitive, extended regex syntax with spetial chars
+            regcomp_ret = regcomp(&g_http_signature_registry[entry_idx].compiled_pattern, g_http_signature_registry[entry_idx].pattern_source, REG_EXTENDED | REG_ICASE);
             if (regcomp_ret == 0)
             {
                 g_http_signature_registry[entry_idx].is_compiled = TRUE;
@@ -146,21 +144,14 @@ void http_signatures_destroy(void)
 /**
  * @brief Copies buffer into a NUL-terminated scratch buffer for regexec.
  *
- * Embedded NUL bytes (0x00) inside the payload are replaced with space
- * (0x20) so POSIX regexec sees the entire buffer rather than stopping
- * at the first NUL. HTTP headers are ASCII text, so an embedded NUL is
- * already a protocol violation; replacing it has no functional impact
- * on legitimate traffic and prevents truncation attacks against the
- * scanner.
+ * Embedded NUL bytes (0x00) inside the payload are replaced with space (0x20) so POSIX regexec sees the entire buffer rather than  at the first NUL.
  *
  * @param src Input bytes (need not be NUL-terminated).
  * @param src_len Number of valid bytes in src.
  * @param dst Output buffer of at least HTTP_SIG_SCRATCH_BUFFER_LEN bytes.
  * @return Number of bytes copied (excluding the trailing NUL).
  */
-static size_t http_signatures_copy_for_regex(const uint8_t *src,
-                                             size_t src_len,
-                                             char *dst)
+static size_t http_signatures_copy_for_regex(const uint8_t *src, size_t src_len, char *dst)
 {
     size_t copy_len;
     size_t byte_idx;
@@ -193,9 +184,8 @@ static size_t http_signatures_copy_for_regex(const uint8_t *src,
 /**
  * @brief Creates a match record for a single regex hit.
  *
- * Copies up to HTTP_SIG_MATCHED_BYTES_LEN-1 bytes of the matched
- * substring into the record so the caller (and later, the AI agent
- * over IPC) can see exactly what triggered the signature.
+ * Copies up to HTTP_SIG_MATCHED_BYTES_LEN-1 bytes of the matched substring into the record so the caller can
+ * see exactly what triggered the signature.
  *
  * @param entry Source signature entry that produced the hit.
  * @param scratch The NUL-terminated buffer that was scanned.
@@ -203,10 +193,7 @@ static size_t http_signatures_copy_for_regex(const uint8_t *src,
  * @param match_len Length of the matched substring.
  * @return Allocated match record, or NULL on allocation failure.
  */
-static http_attack_match_t *http_signatures_make_match(const http_signature_entry_t *entry,
-                                                       const char *scratch,
-                                                       size_t match_start_offset,
-                                                       size_t match_len)
+static http_attack_match_t *http_signatures_make_match(const http_signature_entry_t *entry, const char *scratch, size_t match_start_offset, size_t match_len)
 {
     http_attack_match_t *new_match;
     size_t bytes_to_copy;
@@ -230,9 +217,7 @@ static http_attack_match_t *http_signatures_make_match(const http_signature_entr
             bytes_to_copy = match_len;
         }
 
-        memcpy(new_match->matched_bytes,
-               scratch + match_start_offset,
-               bytes_to_copy);
+        memcpy(new_match->matched_bytes, scratch + match_start_offset, bytes_to_copy);
         new_match->matched_bytes[bytes_to_copy] = '\0';
     }
 
@@ -242,25 +227,17 @@ static http_attack_match_t *http_signatures_make_match(const http_signature_entr
 /**
  * @brief Scans the scratch buffer for every occurrence of one signature.
  *
- * Re-runs regexec from the byte just after the previous match so that
- * multiple hits inside the same buffer (e.g. two SQLi tokens in one
- * URL) are all reported. The scan stops cleanly when no more matches
- * exist or an allocation fails.
+ * Re-runs regexec from the byte just after the previous match so that multiple hits inside the same buffer (e.g. two SQLi tokens in one
+ * URL) are all reported. The scan stops cleanly when no more matches exist or an allocation fails.
  *
  * @param entry The compiled signature to apply.
  * @param scratch NUL-terminated input.
  * @param scratch_len Length of scratch (excluding terminator).
- * @param matches_tail_ptr In/out: address of the .next pointer of the
- *                        current tail of the match list. Updated as
- *                        new records are linked in.
+ * @param matches_tail_ptr In/out: address of the .next pointer of the current tail of the match list. Updated as new records are linked in.
  * @param hit_count_inout In/out: incremented for each appended hit.
  * @return TRUE on success (zero or more hits), FALSE on allocation failure.
  */
-static boolean_e http_signatures_scan_one_signature(http_signature_entry_t *entry,
-                                                    const char *scratch,
-                                                    size_t scratch_len,
-                                                    http_attack_match_t ***matches_tail_ptr,
-                                                    uint32_t *hit_count_inout)
+static boolean_e http_signatures_scan_one_signature(http_signature_entry_t *entry, const char *scratch, size_t scratch_len, http_attack_match_t ***matches_tail_ptr, uint32_t *hit_count_inout)
 {
     boolean_e scan_succeeded;
     boolean_e scan_active;
@@ -278,11 +255,7 @@ static boolean_e http_signatures_scan_one_signature(http_signature_entry_t *entr
 
     while (scan_active == TRUE)
     {
-        regexec_ret = regexec(&entry->compiled_pattern,
-                              scratch + cursor,
-                              1,
-                              &match_position,
-                              0);
+        regexec_ret = regexec(&entry->compiled_pattern, scratch + cursor, 1, &match_position, 0);
 
         if (regexec_ret == REG_NOMATCH)
         {
@@ -290,10 +263,7 @@ static boolean_e http_signatures_scan_one_signature(http_signature_entry_t *entr
         }
         else if (regexec_ret != 0)
         {
-            fprintf(stderr,
-                    "[L7][sig] regexec error %d on signature '%s'\n",
-                    regexec_ret,
-                    entry->signature_id);
+            fprintf(stderr, "[L7][sig] regexec error %d on signature '%s'\n", regexec_ret, entry->signature_id);
             scan_active = FALSE;
         }
         else
@@ -302,14 +272,12 @@ static boolean_e http_signatures_scan_one_signature(http_signature_entry_t *entr
             absolute_match_end = cursor + (size_t)match_position.rm_eo;
             match_len = absolute_match_end - absolute_match_start;
 
-            new_match = http_signatures_make_match(entry,
-                                                   scratch,
-                                                   absolute_match_start,
-                                                   match_len);
+            new_match = http_signatures_make_match(entry, scratch, absolute_match_start, match_len);
             if (new_match == NULL)
             {
                 scan_succeeded = FALSE;
                 scan_active = FALSE;
+                fprintf(stderr, "[L7][sig] allocation failed for signature '%s' match\n", entry->signature_id);
             }
             else
             {
@@ -342,9 +310,7 @@ static boolean_e http_signatures_scan_one_signature(http_signature_entry_t *entr
 /**
  * @brief Scans a reassembled HTTP buffer for all registered attack signatures.
  *
- * Performs a one-time auto-init of the registry on the first call so
- * higher layers do not have to remember to call http_signatures_init
- * explicitly. Copies the input into a NUL-safe scratch buffer, then
+ * Performs a one-time auto-init of the registry on the first call so .Copies the input into a NUL-safe scratch buffer, then
  * applies every compiled signature in turn.
  *
  * @param buffer Reassembled HTTP bytes (need not be NUL-terminated).
@@ -353,10 +319,7 @@ static boolean_e http_signatures_scan_one_signature(http_signature_entry_t *entr
  * @param out_match_count Out: number of matches appended.
  * @return HTTP_SIG_SUCCESS or an error code.
  */
-http_sig_ret_e http_signatures_scan_buffer(const uint8_t *buffer,
-                                           size_t buffer_len,
-                                           http_attack_match_t **out_matches_head,
-                                           uint32_t *out_match_count)
+http_sig_ret_e http_signatures_scan_buffer(const uint8_t *buffer, size_t buffer_len, http_attack_match_t **out_matches_head, uint32_t *out_match_count)
 {
     http_sig_ret_e ret_val;
     char scratch[HTTP_SIG_SCRATCH_BUFFER_LEN];
@@ -370,12 +333,14 @@ http_sig_ret_e http_signatures_scan_buffer(const uint8_t *buffer,
     scan_succeeded = TRUE;
     processing_active = TRUE;
 
+    // bad params
     if (buffer == NULL || out_matches_head == NULL || out_match_count == NULL)
     {
         ret_val = HTTP_SIG_NULL_ARG;
         processing_active = FALSE;
     }
 
+    // init regex patterns
     if (processing_active == TRUE && g_http_signatures_initialized == FALSE)
     {
         if (http_signatures_init() != HTTP_SIG_SUCCESS)
@@ -398,16 +363,12 @@ http_sig_ret_e http_signatures_scan_buffer(const uint8_t *buffer,
         }
 
         signature_idx = 0;
+        // Apply every signature in the registry, stopping on allocation failure.
         while (signature_idx < g_http_signature_count && scan_succeeded == TRUE)
         {
             if (g_http_signature_registry[signature_idx].is_compiled == TRUE)
             {
-                scan_succeeded = http_signatures_scan_one_signature(
-                    &g_http_signature_registry[signature_idx],
-                    scratch,
-                    scratch_len,
-                    &matches_tail_ptr,
-                    out_match_count);
+                scan_succeeded = http_signatures_scan_one_signature(&g_http_signature_registry[signature_idx], scratch, scratch_len, &matches_tail_ptr, out_match_count);
             }
             signature_idx++;
         }

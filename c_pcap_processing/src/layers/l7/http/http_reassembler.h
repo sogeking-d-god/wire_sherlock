@@ -61,15 +61,6 @@ typedef struct l7_session_state_s
 } http_reassembler_session_t;
 
 /**
- * @brief Allocates and zero-initializes a new reassembler session state.
- *
- * Both per-direction reassemblers start in HTTP_REASSEMBLY_STATE_IDLE.
- *
- * @return Pointer to the new session, or NULL on allocation failure.
- */
-http_reassembler_session_t *http_reassembler_session_alloc(void);
-
-/**
  * @brief Releases a reassembler session state. Safe with NULL.
  *
  * The struct has no inner heap allocations (the message buffer is inline),

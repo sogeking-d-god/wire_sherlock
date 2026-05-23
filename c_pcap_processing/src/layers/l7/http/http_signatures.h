@@ -78,10 +78,7 @@ void http_signatures_destroy(void);
  * @return HTTP_SIG_SUCCESS on a clean scan (zero or more matches),
  *         HTTP_SIG_NULL_ARG / HTTP_SIG_ALLOC_FAILED on errors.
  */
-http_sig_ret_e http_signatures_scan_buffer(const uint8_t *buffer,
-                                           size_t buffer_len,
-                                           http_attack_match_t **out_matches_head,
-                                           uint32_t *out_match_count);
+http_sig_ret_e http_signatures_scan_buffer(const uint8_t *buffer, size_t buffer_len, http_attack_match_t **out_matches_head, uint32_t *out_match_count);
 
 /**
  * @brief Frees a linked list of http_attack_match_t records.

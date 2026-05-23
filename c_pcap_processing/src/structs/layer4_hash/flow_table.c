@@ -111,12 +111,12 @@ void flow_table_print_report(flow_table_t *table)
             while (flow_node)
             {
                 session_node_t *session = flow_node->first_session;
-                int             session_idx = 1;
-                char            src_ip_str[INET6_ADDRSTRLEN];
-                char            dst_ip_str[INET6_ADDRSTRLEN];
-                uint32_t        total_pkts;
-                uint32_t        total_bytes;
-                const char      *state_str;
+                int session_idx = 1;
+                char src_ip_str[INET6_ADDRSTRLEN];
+                char dst_ip_str[INET6_ADDRSTRLEN];
+                uint32_t total_pkts;
+                uint32_t total_bytes;
+                const char *state_str;
 
                 get_ip_str(&flow_node->key.src_ip, flow_node->key.ip_type, src_ip_str, sizeof(src_ip_str));
                 get_ip_str(&flow_node->key.dst_ip, flow_node->key.ip_type, dst_ip_str, sizeof(dst_ip_str));
@@ -124,7 +124,7 @@ void flow_table_print_report(flow_table_t *table)
                 while (session)
                 {
                     total_pkts  = session->devices[0].data.packets_sent + session->devices[1].data.packets_sent;
-                    total_bytes = session->devices[0].data.bytes_sent   + session->devices[1].data.bytes_sent;
+                    total_bytes = session->devices[0].data.bytes_sent + session->devices[1].data.bytes_sent;
                     state_str   = get_tcp_state_str(session, flow_node->key.protocol);
 
                     printf("%-40s %-6u <-> %-40s %-6u | %-3u | #%-3d | %-4u | %-5u | %s\n",
@@ -304,12 +304,12 @@ static flow_key_t create_flow_key(packet_info_t *pkt_info, flow_table_first_devi
  */
 flow_table_process_packet_ret_t flow_table_process_packet(flow_table_t *table, packet_info_t *pkt_info)
 {
-    flow_table_process_packet_ret_t    ret_struct = {0};
+    flow_table_process_packet_ret_t ret_struct = {0};
     flow_table_process_packet_return_e ret_code   = FLOW_TABLE_PROCESS_PACKET_SUCCESS;
-    flow_table_first_device_e          first_dev  = FLOW_TABLE_FIRST_DEVICE_SRC;
-    flow_key_t                         key;
-    uint32_t                           hash;
-    flow_node_t                        *node;
+    flow_table_first_device_e first_dev  = FLOW_TABLE_FIRST_DEVICE_SRC;
+    flow_key_t key;
+    uint32_t hash;
+    flow_node_t *node;
 
     if (table && pkt_info)
     {
@@ -333,12 +333,12 @@ flow_table_process_packet_ret_t flow_table_process_packet(flow_table_t *table, p
             }
             else
             {
-                node->key           = key;
+                node->key = key;
                 node->first_session = NULL;
                 node->last_session  = NULL;
 
                 // Adding the new node as at the head of the bucket
-                node->next           = table->buckets[hash];
+                node->next = table->buckets[hash];
                 table->buckets[hash] = node;
                 table->flow_count++;
 
@@ -351,9 +351,9 @@ flow_table_process_packet_ret_t flow_table_process_packet(flow_table_t *table, p
         }
     }
 
-    ret_struct.ret_code      = ret_code;
+    ret_struct.ret_code = ret_code;
     ret_struct.flow_node_ptr = node;
-    ret_struct.dev_idx       = first_dev;
+    ret_struct.dev_idx = first_dev;
 
     return ret_struct;
 }
@@ -369,15 +369,13 @@ flow_table_process_packet_ret_t flow_table_process_packet(flow_table_t *table, p
  * @param src_dev   Which device index (0 or 1) sent this packet.
  * @return Status code indicating success or the type of failure.
  */
-flow_table_process_packet_return_e flow_table_insert_to_session(flow_node_t *flow_node,
-                                                                 packet_info_t *pkt_info,
-                                                                 flow_table_first_device_e src_dev)
+flow_table_process_packet_return_e flow_table_insert_to_session(flow_node_t *flow_node, packet_info_t *pkt_info, flow_table_first_device_e src_dev)
 {
-    flow_table_process_packet_return_e ret_code       = FLOW_TABLE_PROCESS_PACKET_SUCCESS;
-    message_node_t                     *new_msg;
-    session_node_t                     *current_session;
-    session_node_t                     *new_session;
-    struct timeval                     time_diff;
+    flow_table_process_packet_return_e ret_code = FLOW_TABLE_PROCESS_PACKET_SUCCESS;
+    message_node_t *new_msg;
+    session_node_t *current_session;
+    session_node_t *new_session;
+    struct timeval time_diff;
 
     // Create and add new message to session
     new_msg = (message_node_t *)calloc(1, MESSAGE_NODE_SIZE);
@@ -389,13 +387,13 @@ flow_table_process_packet_return_e flow_table_insert_to_session(flow_node_t *flo
     }
     else
     {
-        new_msg->timestamp            = pkt_info->cap_info.ts;
-        new_msg->payload_len          = pkt_info->offsets.payload_len;
-        new_msg->total_packet_len     = pkt_info->cap_info.wire_len;
+        new_msg->timestamp = pkt_info->cap_info.ts;
+        new_msg->payload_len = pkt_info->offsets.payload_len;
+        new_msg->total_packet_len = pkt_info->cap_info.wire_len;
         new_msg->packet_start_pointer = pkt_info->offsets.packet_start_pointer;
-        new_msg->tcp_flags            = pkt_info->port_info.tcp_flags;
-        new_msg->dev_idx              = (uint8_t)src_dev;
-        new_msg->next                 = NULL;
+        new_msg->tcp_flags = pkt_info->port_info.tcp_flags;
+        new_msg->dev_idx = (uint8_t)src_dev;
+        new_msg->next = NULL;
 
         current_session = flow_node->last_session;
 
@@ -404,6 +402,7 @@ flow_table_process_packet_return_e flow_table_insert_to_session(flow_node_t *flo
             timersub(&pkt_info->cap_info.ts, &current_session->timestamp, &time_diff);
         }
 
+        // If no existing session or last session timed out, create a new session. Otherwise, append to existing session.
         if (!current_session || (time_diff.tv_sec >= FLOW_TABLE_TIMEOUT))
         {
             new_session = (session_node_t *)calloc(1, SESSION_NODE_SIZE);
@@ -423,26 +422,27 @@ flow_table_process_packet_return_e flow_table_insert_to_session(flow_node_t *flo
 
                 if (!flow_node->first_session)
                 {
-                    flow_node->last_session  = new_session;
+                    flow_node->last_session = new_session;
                     flow_node->first_session = new_session;
                 }
                 else
                 {
                     flow_node->last_session->next = new_session;
-                    flow_node->last_session       = new_session;
+                    flow_node->last_session = new_session;
                 }
 
                 current_session = new_session;
             }
         }
+        // append to existing session
         else
         {
             ret_code = FLOW_TABLE_PROCESS_PACKET_ADD_TO_EXISTING_FLOW_SUCCESS;
 
             current_session->messages.tail->next = new_msg;
-            current_session->messages.tail       = current_session->messages.tail->next;
+            current_session->messages.tail = current_session->messages.tail->next;
         }
-
+        // Update session stats
         if (ret_code >= FLOW_TABLE_PROCESS_PACKET_SUCCESS)
         {
             current_session->timestamp = pkt_info->cap_info.ts;

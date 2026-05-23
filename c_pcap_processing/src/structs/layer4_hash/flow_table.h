@@ -90,6 +90,8 @@ typedef struct
     flow_device_data_t data;
 
     message_node_t *ooo_buffer; // out-of-order
+
+    boolean_e seq_initialized;
 } flow_device_t;
 
 
