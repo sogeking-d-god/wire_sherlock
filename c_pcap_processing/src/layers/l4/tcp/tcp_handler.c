@@ -242,11 +242,11 @@ flow_table_process_packet_return_e tcp_handler_process_flow_update(flow_node_t *
 
             // Mid-stream pickup: if this device's seq was never initialized 
             // and this packet actually advances the sequence space => anchor to it.  (to not alert retransmission).
-            if (!session->devices[dev_idx].data.seq_initialized && (payload_len + control) > 0)
+            if (!session->devices[dev_idx].seq_initialized && (payload_len + control) > 0)
             {
                 session->devices[dev_idx].data.next_expected_seq = seq;
                 expected = seq;
-                session->devices[dev_idx].data.seq_initialized = TRUE;
+                session->devices[dev_idx].seq_initialized = TRUE;
             }
 
             // Create new message node

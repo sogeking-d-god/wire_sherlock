@@ -44,6 +44,15 @@ typedef struct file_analysis_context_s
     // Time series data
     packet_store_t * packet_store;
     bin_manager_t * bin_manager;
+
+    // Anomaly caches populated by cmd_generate_anomalies and consumed by
+    // cmd_cluster_anomalies (Hardening Constraint #1 validates these before deref).
+    // Opaque void* so parser.h does not depend on analytics headers; the
+    // anomaly_wrapper layer casts these to scored_segments_list_t* /
+    // micro_events_list_t* and frees them via anomaly_wrapper_free_caches,
+    // which engine_controller calls right before core_free.
+    void *anomaly_macro_cache;
+    void *anomaly_micro_cache;
 } file_analysis_context_t;
 
 parser_return_codes_e parse_pcap_file(file_analysis_context_t *core, const char* file_path);

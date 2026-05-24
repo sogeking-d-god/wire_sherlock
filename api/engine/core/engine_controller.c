@@ -9,6 +9,8 @@
 #include "metrics_wrapper.h"
 #include "l7_handler.h"
 #include "http_signatures.h"
+#include "http_attack_wrapper.h"
+#include "anomaly_wrapper.h"
 
 /**
  * @brief Runs the main engine command loop, processing JSON commands from the client.
@@ -91,7 +93,25 @@ void run_engine_loop(int client_sock, const char *pcap_path)
                     }
                 }
 
-                // 4. EXIT
+                // 4. ANALYZE_HTTP
+                else if (strcmp(cmd->valuestring, CMD_ANALYZE_HTTP) == 0)
+                {
+                    handle_analyze_http_request(client_sock, core);
+                }
+
+                // 5. GENERATE_ANOMALIES
+                else if (strcmp(cmd->valuestring, CMD_GENERATE_ANOMALIES) == 0)
+                {
+                    handle_generate_anomalies_request(client_sock, core, request);
+                }
+
+                // 6. CLUSTER_ANOMALIES (filtered DBSCAN)
+                else if (strcmp(cmd->valuestring, CMD_CLUSTER_ANOMALIES) == 0)
+                {
+                    handle_cluster_anomalies_request(client_sock, core, request);
+                }
+
+                // 7. EXIT
                 else if (strcmp(cmd->valuestring, CMD_EXIT) == 0)
                 {
                     send_api_response(client_sock, STATUS_SUCCESS, cJSON_CreateString("Shutting down..."));
@@ -105,6 +125,7 @@ void run_engine_loop(int client_sock, const char *pcap_path)
 
     if (core)
     {
+        anomaly_wrapper_free_caches(core);
         core_free(core);
     }
 

@@ -1,120 +1,185 @@
-import subprocess
-import socket
-import json
-import os
+import asyncio
 import time
-import uuid
-import struct
+from pathlib import Path
+from typing import Any
+
 import numpy as np
-from enum import IntEnum
+from fastapi import HTTPException, status
 
-from api.python.c_ipc_manager import CEngineIPC, MetricType
-from api.python.c_schemas import ParserResult, MetricResult
 from api.config import ipc_config
+from api.python.c_ipc_manager import CEngineIPC, MetricType, SessionTerminatedError
+from api.python.c_schemas import (
+    AnomalyBundle,
+    AnomalyClusterResult,
+    HttpAttackReport,
+    MetricResult,
+    ParserResult,
+)
 
-# =====================================================================
-# High-Level Wrapper
-# =====================================================================
+
+def _to_session_terminated(exc: SessionTerminatedError) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=f"Session was terminated mid-request: {exc}",
+    )
+
+
 class WireSherlockSession:
-    """
-    The main clean interface for the Python Backend.
-    Hides all IPC complexity and returns structured Pydantic models/Numpy arrays.
+    """Per-user investigation session. Owns one C worker subprocess via CEngineIPC.
+
+    The per-session asyncio.Lock serializes IPC calls — the underlying socket
+    is a single full-duplex stream, so concurrent send/recv would interleave
+    framed messages. Different users hold different sessions and therefore
+    different locks, so cross-user concurrency is preserved.
     """
 
-    def __init__(self, pcap_path: str):
+    def __init__(
+        self,
+        pcap_path: str,
+        socket_path: str,
+        workspace_dir: Path | str,
+        session_uuid: str,
+        label: str,
+    ):
         self.pcap_path = pcap_path
-        self.ipc = CEngineIPC(pcap_path)
-        self.analysis_summary: ParserResult = None
-        self.metrics_cache = {}
+        self.label = label
+        self.session_uuid = session_uuid
+        self.workspace_dir = Path(workspace_dir)
+        self.ipc = CEngineIPC(
+            pcap_path=pcap_path,
+            socket_path=socket_path,
+            workspace_dir=str(workspace_dir),
+        )
+        self.analysis_summary: ParserResult | None = None
+        self.lock = asyncio.Lock()
+        self.last_active: float = time.monotonic()
 
-    def start(self):
-        """Starts the C engine."""
-        print(f"[Python] Starting Session for {self.ipc.pcap_full_path}...")
-        self.ipc.start_process_and_connect()
+    def touch(self) -> None:
+        self.last_active = time.monotonic()
 
-    def stop(self):
-        """Stops the C engine gracefully."""
-        self.ipc.close()
-        print("[Python] Session closed.")
+    # ------------------------------------------------------------------
+    # Lifecycle
+    # ------------------------------------------------------------------
+    async def start_async(self) -> None:
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, self.ipc.start_process_and_connect)
+        self.touch()
 
-    def ping(self) -> bool:
-        """Checks if the C engine is alive."""
-        resp = self.ipc.send_command(ipc_config.CMD_PING)
-        return resp is not None and resp.get('status') == 'status_success'
+    async def aclose(self) -> None:
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, self.ipc.terminate)
 
-    def run_analysis(self) -> ParserResult:
-        """
-        Triggers the full PCAP parsing in C, receives the massive JSON,
-        and parses it into a clean Pydantic model.
-        """
-        if not self.ipc.sock:
-            print("[Python] Engine not started. Auto-starting...")
-            self.start()
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+    async def _send(self, cmd: str, payload: dict | None = None) -> dict:
+        loop = asyncio.get_running_loop()
+        async with self.lock:
+            try:
+                resp = await loop.run_in_executor(
+                    None, self.ipc.send_command, cmd, payload
+                )
+            except SessionTerminatedError as e:
+                raise _to_session_terminated(e) from e
+        self.touch()
+        if resp is None:
+            raise HTTPException(status_code=502, detail=f"Empty response from C engine for {cmd}")
+        return resp
 
-        response = self.ipc.send_command(ipc_config.CMD_START_ANALYSIS)
+    @staticmethod
+    def _require_success(resp: dict, cmd: str) -> Any:
+        status_str = resp.get("status")
+        if status_str != ipc_config.STATUS_SUCCESS:
+            data = resp.get("data")
+            raise HTTPException(
+                status_code=502,
+                detail=f"C engine error on {cmd}: {data}",
+            )
+        return resp.get("data")
 
-        if not response or response.get('status') != 'status_success':
-            raise RuntimeError(f"Analysis failed: {response.get('data') if response else 'No response'}")
-
-        # convert to dictionary
-        self.analysis_summary = ParserResult(**response.get('data'))
+    # ------------------------------------------------------------------
+    # Existing commands
+    # ------------------------------------------------------------------
+    async def run_analysis_async(self) -> ParserResult:
+        resp = await self._send(ipc_config.CMD_START_ANALYSIS)
+        data = self._require_success(resp, ipc_config.CMD_START_ANALYSIS)
+        self.analysis_summary = ParserResult(**data)
         return self.analysis_summary
 
-    def get_metric_bins(self, metric: MetricType) -> MetricResult:
-        """
-        Requests binary statistical data from the C Engine via IPC.
-        Returns a validated MetricResult object.
-        """
+    async def get_metric_bins_async(self, metric: MetricType) -> MetricResult:
         if not isinstance(metric, MetricType):
+            metric = MetricType(metric)
+
+        loop = asyncio.get_running_loop()
+        async with self.lock:
             try:
-                metric = MetricType(metric)
-            except ValueError:
-                raise ValueError(f"Unsupported metric identifier: {metric}")
+                resp = await loop.run_in_executor(
+                    None,
+                    self.ipc.send_command,
+                    ipc_config.CMD_GET_BINS,
+                    {"metric_id": int(metric)},
+                )
+                if resp is None or resp.get("status") != ipc_config.STATUS_BINARY:
+                    raise HTTPException(
+                        status_code=502,
+                        detail=f"C Engine failed to provide metric {metric.name}",
+                    )
+                meta = resp["data"]
+                byte_size = int(meta["byte_size"])
+                raw_binary = await loop.run_in_executor(
+                    None, self.ipc.recv_binary, byte_size
+                )
+            except SessionTerminatedError as e:
+                raise _to_session_terminated(e) from e
+        self.touch()
 
-        # Send command to C
-        response = self.ipc.send_command(ipc_config.CMD_GET_BINS, {"metric_id": int(metric)})
-
-        if not response or response.get("status") != ipc_config.STATUS_BINARY:
-            metric_name = metric.name if isinstance(metric, MetricType) else str(metric)
-            raise RuntimeError(f"C Engine failed to provide metric {metric_name}")
-
-        # Extract metadata sent via JSON
-        meta = response["data"]
-        byte_size = int(meta["byte_size"])
-
-        # Receive the raw binary array (double*)
-        raw_binary = self.ipc.recv_binary(byte_size)
-        if not raw_binary:
-            raise IOError("Failed to receive binary payload from C Engine")
-
-        # Convert binary to numpy and then to a standard Python list
         bins_array = np.frombuffer(raw_binary, dtype=np.float64).copy()
-
         return MetricResult(
             metric_id=meta["metric_id"],
             start_ts=meta["start_ts"],
             bin_size_ms=meta["bin_size_ms"],
             total_bins=meta["total_bins"],
-            data=bins_array.tolist()
+            data=bins_array.tolist(),
         )
 
-if __name__ == "__main__":
-    session = WireSherlockSession("../pcap_files/regular_pcap_file.pcap")
+    async def ping_async(self) -> bool:
+        resp = await self._send(ipc_config.CMD_PING)
+        return resp.get("status") == ipc_config.STATUS_SUCCESS
 
-    try:
-        session.start()
+    # ------------------------------------------------------------------
+    # New advanced commands
+    # ------------------------------------------------------------------
+    async def analyze_http_advanced(self) -> HttpAttackReport:
+        resp = await self._send(ipc_config.CMD_ANALYZE_HTTP)
+        data = self._require_success(resp, ipc_config.CMD_ANALYZE_HTTP)
+        return HttpAttackReport(**data)
 
-        if session.ping():
-            print("Engine is alive. Starting analysis...")
+    async def generate_anomalies(
+        self,
+        metric_mask: int,
+        z_sensitivity: float | None = None,
+    ) -> AnomalyBundle:
+        payload: dict = {"metric_mask": int(metric_mask)}
+        if z_sensitivity is not None:
+            payload["z_sensitivity"] = float(z_sensitivity)
+        resp = await self._send(ipc_config.CMD_GENERATE_ANOMALIES, payload)
+        data = self._require_success(resp, ipc_config.CMD_GENERATE_ANOMALIES)
+        return AnomalyBundle(**data)
 
-            result = session.run_analysis()
-
-            print(f"Total Packets: {result.total_packets}")
-            if result.global_ipv4_stats:
-                print(f"Unique IPv4 Addresses: {len(result.global_ipv4_stats)}")
-
-            traffic_bins = session.get_metric_bins(MetricType.BYTE_COUNT)
-            print(f"Traffic Max Spikes: {np.max(traffic_bins)}")
-
-    finally:
-        session.stop()
+    async def cluster_anomalies(
+        self,
+        metric_mask: int,
+        macro_ids: list[int],
+        micro_ids: list[int],
+        cfg: dict | None = None,
+    ) -> AnomalyClusterResult:
+        payload: dict = {
+            "metric_mask": int(metric_mask),
+            "macro_ids": [int(i) for i in macro_ids],
+            "micro_ids": [int(i) for i in micro_ids],
+        }
+        if cfg is not None:
+            payload["cfg"] = cfg
+        resp = await self._send(ipc_config.CMD_CLUSTER_ANOMALIES, payload)
+        data = self._require_success(resp, ipc_config.CMD_CLUSTER_ANOMALIES)
+        return AnomalyClusterResult(**data)

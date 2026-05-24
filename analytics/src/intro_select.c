@@ -241,7 +241,7 @@ static int intro_select_recursive(int *indexes, int n, int k, int depth_limit, p
         }
         else if (k > above_pivot)
         {
-            ret_val = intro_select_recursive(indexes + above_pivot + 1, n - above_pivot - 1, k - above_pivot - 1, depth_limit - 1,  dim);
+            ret_val = intro_select_recursive(indexes + above_pivot + 1, n - above_pivot - 1, k - above_pivot - 1, depth_limit - 1, data, dim);
         }
         else
         {

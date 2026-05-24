@@ -2,10 +2,12 @@ FROM python:3.12-slim
 
 # Install system dependencies for C engine and networking
 RUN apt-get update && apt-get install -y \
+    build-essential \
     gcc \
     make \
     libpcap-dev \
     libcjson-dev \
+    binutils \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

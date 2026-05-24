@@ -1,22 +1,20 @@
 CC = cc
 
-# נתיבי שורש יחסיים
 API_ROOT       = ..
 PROJECT_ROOT   = ../..
 ANALYTICS_ROOT = $(PROJECT_ROOT)/analytics
 PCAP_ROOT      = $(PROJECT_ROOT)/c_pcap_processing
 
-# ספריות פנימיות
 CORE_DIR       = ./core
 WRAPPERS_DIR   = ./wrappers
 SRC_PCAP       = $(PCAP_ROOT)/src
 SRC_ANALYTICS  = $(ANALYTICS_ROOT)/src
 
-# Flags של קומפילציה
 CFLAGS = -Wall -Wextra -Wpedantic -Wshadow -g \
          -I$(API_ROOT)/config \
          -I$(CORE_DIR) \
          -I$(WRAPPERS_DIR)/parsing \
+         -I$(WRAPPERS_DIR)/analytics \
          -I$(ANALYTICS_ROOT)/include \
          -I$(PCAP_ROOT) \
          -I$(SRC_PCAP)/parser \
@@ -40,7 +38,6 @@ CFLAGS = -Wall -Wextra -Wpedantic -Wshadow -g \
 
 LDFLAGS = -lpcap -lcjson -lm
 
-# רשימת קבצי מקור - החלפתי את c_worker.c ב-main.c והוספתי את השכבות החדשות
 SRCS = $(CORE_DIR)/main.c \
        $(CORE_DIR)/socket_manager.c \
        $(CORE_DIR)/ipc_messenger.c \
@@ -71,12 +68,17 @@ SRCS = $(CORE_DIR)/main.c \
        $(SRC_ANALYTICS)/metrics.c \
        $(SRC_ANALYTICS)/stats.c \
        $(SRC_ANALYTICS)/intro_select.c \
+       $(SRC_ANALYTICS)/normalize.c \
+       $(SRC_ANALYTICS)/anomaly_detector.c \
+       $(SRC_ANALYTICS)/micro_detector.c \
+       $(SRC_ANALYTICS)/pelt_dbscan.c \
        $(WRAPPERS_DIR)/parsing/metrics_wrapper.c \
+       $(WRAPPERS_DIR)/analytics/http_attack_wrapper.c \
+       $(WRAPPERS_DIR)/analytics/anomaly_wrapper.c \
        $(CORE_DIR)/engine_controller.c
 
 OBJS = $(SRCS:.c=.o)
 
-# השם נשאר c_worker כדי שהפייתון ימצא אותו
 TARGET = $(CORE_DIR)/c_worker
 
 all: $(TARGET)

@@ -12,3 +12,12 @@ class TopologyEndpoints:
 class MetricsEndpoints:
     PREFIX = "/api/metrics"
     GET_METRIC = "/{metric_id}"
+
+class AnomaliesEndpoints:
+    PREFIX = "/api/anomalies"
+    GENERATE = "/generate"
+    CLUSTER = "/cluster"
+
+class HttpAttacksEndpoints:
+    PREFIX = "/api/http"
+    ATTACKS = "/attacks"

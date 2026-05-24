@@ -1,31 +1,31 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from api.python.c_ipc_manager import MetricType
+from api.python.session_wrapper import WireSherlockSession
 from backend.models.responses import MetricResponse
 from backend.services.data_builder import format_metric_for_frontend
-from backend import session_manager
-from api.python.c_ipc_manager import MetricType
+from backend.sessions.dependencies import get_user_session
 
 from .endpoints import MetricsEndpoints
+
 router = APIRouter(prefix=MetricsEndpoints.PREFIX, tags=["Metrics"])
 
+
 @router.get(MetricsEndpoints.GET_METRIC, response_model=MetricResponse)
-async def get_traffic_metrics(metric_id: int):
-    # 1. Retrieve the active session from the manager
-    current_session = session_manager.manager.get_session()
-
-    if current_session is None:
-        raise HTTPException(status_code=400, detail="Session not initialized. Please call initialize_default first.")
-
+async def get_traffic_metrics(
+    metric_id: int,
+    session: WireSherlockSession = Depends(get_user_session),
+):
     try:
         metric_enum = MetricType(metric_id)
     except ValueError:
         raise HTTPException(status_code=400, detail=f"Unknown metric_id: {metric_id}")
 
     try:
-        # 2. Get the raw metric bins from the session
-        raw_metrics = current_session.get_metric_bins(metric_enum)
-
-        # 3. Format the metrics for the frontend
+        raw_metrics = await session.get_metric_bins_async(metric_enum)
         return format_metric_for_frontend(metric_id, raw_metrics)
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Metrics Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

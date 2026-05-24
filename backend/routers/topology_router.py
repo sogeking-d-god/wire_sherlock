@@ -1,25 +1,26 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from api.python.session_wrapper import WireSherlockSession
 from backend.services.data_builder import build_topology_data
-from backend.models.responses import TopologyResponse
-# We need to import the session manager to access the global session
-from backend import session_manager
+from backend.sessions.dependencies import get_user_session
+
 from .endpoints import TopologyEndpoints
 
 router = APIRouter(prefix=TopologyEndpoints.PREFIX, tags=["Topology"])
 
-@router.get(TopologyEndpoints.ANALYZE) # This endpoint will trigger the analysis and return the topology data
-async def analyze_and_get_topology():
-    # 1. Retrieve the active session from the manager
-    current_session = session_manager.manager.get_session()
 
-    if not current_session:
-        # If there's no active session, we can't proceed with analysis
-        raise HTTPException(status_code=400, detail="Manager has no active session. Please call /initialize_default first.")
-
+@router.get(TopologyEndpoints.ANALYZE)
+async def analyze_and_get_topology(
+    session: WireSherlockSession = Depends(get_user_session),
+):
     try:
-        # 2. Run the analysis using the session and get the raw JSON output
-        raw_json = current_session.run_analysis()
-        return build_topology_data(raw_json)
+        # Analysis is run once during /api/pcap/select; reuse the cached result.
+        # If the cache is missing (e.g. session restored without analysis), trigger now.
+        if session.analysis_summary is None:
+            await session.run_analysis_async()
+        return build_topology_data(session.analysis_summary)
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error in Topology: {e}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -5,7 +5,9 @@ from sqlalchemy.exc import IntegrityError
 
 from backend.db.database import get_db
 from backend.db import crud
+from backend.dependencies import get_current_user
 from backend.services.auth_service import verify_password, create_access_token, TOKEN_EXPIRE_HOURS
+from backend.sessions.session_manager import manager as session_manager
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -83,6 +85,10 @@ async def login(
 
 
 @router.post("/logout")
-async def logout(response: Response):
+async def logout(response: Response, user_id: str = Depends(get_current_user)):
+    try:
+        await session_manager.terminate(user_id)
+    except Exception as e:
+        print(f"[Auth] logout terminate error for {user_id}: {e}")
     response.delete_cookie(key=_COOKIE, path="/")
     return {"message": "Logged out"}
