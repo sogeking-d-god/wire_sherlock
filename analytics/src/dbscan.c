@@ -20,8 +20,7 @@
  * @param queue The queue for managing the BFS traversal.
  * @param neighbor_buffer The buffer for storing neighboring points.
  */
-static void expand_cluster(int core_idx, int cluster_id, points_arr_t *geometry,
-                          int *kd_indexes, double eps, int min_pts,
+static void expand_cluster(int core_idx, int cluster_id, points_arr_t *geometry, int *kd_indexes, double eps, int min_pts,
                           int *queue, int *neighbor_buffer)
 {
     int q_head = 0;
@@ -31,8 +30,7 @@ static void expand_cluster(int core_idx, int cluster_id, points_arr_t *geometry,
     int sub_count;
 
     // Initial queue: add all neighbors of the core point
-    kd_tree_find_neighbors_flat(kd_indexes, geometry->len, &geometry->arr[core_idx],
-                               eps, geometry, neighbor_buffer, &sub_count);
+    kd_tree_find_neighbors_flat(kd_indexes, geometry->len, &geometry->arr[core_idx], eps, geometry, neighbor_buffer, &sub_count);
 
     for (int j = 0; j < sub_count; j++)
     {

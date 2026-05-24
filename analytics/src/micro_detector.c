@@ -27,10 +27,7 @@ static double micro_abs(double value)
  * @param new_event Event to append.
  * @return int 1 on success, 0 on allocation failure (caller frees and aborts).
  */
-static int micro_events_buffer_push(micro_event_t **items,
-                                    int *count,
-                                    int *capacity,
-                                    const micro_event_t *new_event)
+static int micro_events_buffer_push(micro_event_t **items, int *count, int *capacity, const micro_event_t *new_event)
 {
     int ret_val;
     int new_capacity;
@@ -62,8 +59,7 @@ static int micro_events_buffer_push(micro_event_t **items,
 /**
  * @brief Scans one metric's bin array with a streaming trailing EWMA mean and
  *        EWMA variance, emitting a micro_event_t per bin whose |Z_sliding| exceeds
- *        the configured threshold. Baseline is the PRIOR-step mean so the spike
- *        itself does not contaminate its own baseline.
+ *        the configured threshold.
  *
  * @param bin_values Pointer to the metric's bin array (length total_bins).
  * @param total_bins Number of bins in the array.
@@ -75,14 +71,8 @@ static int micro_events_buffer_push(micro_event_t **items,
  * @param out_capacity Pointer to the events allocated capacity (grown as needed).
  * @return int 1 on success (including zero events), 0 if a buffer growth failed.
  */
-static int micro_sweep_one_metric(const double *bin_values,
-                                  long total_bins,
-                                  metric_index_e metric,
-                                  double alpha,
-                                  double z_threshold,
-                                  micro_event_t **out_items,
-                                  int *out_count,
-                                  int *out_capacity)
+static int micro_sweep_one_metric(const double *bin_values, long total_bins, metric_index_e metric, double alpha, double z_threshold,
+                                  micro_event_t **out_items, int *out_count, int *out_capacity)
 {
     int ret_val;
     long i;
@@ -112,7 +102,7 @@ static int micro_sweep_one_metric(const double *bin_values,
         {
             delta = bin_values[i] - ewma_mean_prev;
             ewma_mean_next = ewma_mean_prev + alpha * delta;
-            // Welford-style EWMA variance: leans on prior variance plus weighted squared delta.
+            // EWMA variance: leans on prior variance plus weighted squared delta.
             ewma_var_next = one_minus_alpha * (ewma_var_prev + alpha * delta * delta);
 
             if ((long)i >= (long)MICRO_EWMA_WARMUP_BINS && ewma_var_next > MICRO_EWMA_VAR_FLOOR)
@@ -147,9 +137,11 @@ static int micro_sweep_one_metric(const double *bin_values,
 }
 
 /**
- * @brief Projects micro events onto a 1D temporal point set inside a 3D points_arr_t
- *        (vals[0] = bin_index, vals[1] = vals[2] = 0). The unused dimensions contribute
- *        zero to Euclidean distance, so the existing 3D KD-tree DBSCAN acts as a 1D one.
+ * @brief Projects micro events onto a true 1D temporal point set.
+ *        Sets dim_count = MICRO_EVENT_DIM_COUNT (1) so the KD-tree builds and
+ *        searches over a single axis (bin_index). Padding higher dimensions
+ *        with zeros while leaving dim_count = 3 would have caused the tree
+ *        to split on constant-zero axes at depths 1 and 2, degrading queries.
  *
  * @param events Source events list.
  * @param out_points Output points; arr is malloc'd, caller frees via micro_points_free.
@@ -171,15 +163,13 @@ static int micro_build_event_points(const micro_events_list_t *events, points_ar
             for (i = 0; i < events->count; i++)
             {
                 buffer[i].vals[0] = (double)events->items[i].bin_index;
-                buffer[i].vals[1] = 0.0;
-                buffer[i].vals[2] = 0.0;
                 buffer[i].original_index = i;
                 buffer[i].cluster_id = UNCLASSIFIED;
             }
 
             out_points->arr = buffer;
             out_points->len = events->count;
-            out_points->dim_count = MAX_DIM_COUNT;
+            out_points->dim_count = MICRO_EVENT_DIM_COUNT;
             ret_val = 1;
         }
     }
@@ -247,10 +237,7 @@ static int micro_count_clusters(const points_arr_t *points)
  * @param out_bursts Output bursts list; items malloc'd on success.
  * @return int 1 on success, 0 on allocation failure.
  */
-static int micro_build_bursts(const points_arr_t *points,
-                              const micro_events_list_t *events,
-                              int cluster_count,
-                              micro_bursts_list_t *out_bursts)
+static int micro_build_bursts(const points_arr_t *points, const micro_events_list_t *events, int cluster_count, micro_bursts_list_t *out_bursts)
 {
     int ret_val;
     int point_idx;
@@ -276,7 +263,7 @@ static int micro_build_bursts(const points_arr_t *points,
 
         if (bursts_buffer != NULL && write_cursor != NULL)
         {
-            // Pass 1: count members per cluster (cluster ids are FIRST_CLUSTER..cluster_count).
+            // Pass 1: count members per cluster
             for (point_idx = 0; point_idx < points->len; point_idx++)
             {
                 target_cluster = points->arr[point_idx].cluster_id;
@@ -341,12 +328,10 @@ static int micro_build_bursts(const points_arr_t *points,
             }
             else
             {
+
                 for (cluster_iter = 0; cluster_iter < cluster_count; cluster_iter++)
                 {
-                    if (bursts_buffer[cluster_iter].member_indexes != NULL)
-                    {
-                        free(bursts_buffer[cluster_iter].member_indexes);
-                    }
+                    free(bursts_buffer[cluster_iter].member_indexes);
                 }
                 free(bursts_buffer);
             }
@@ -357,6 +342,7 @@ static int micro_build_bursts(const points_arr_t *points,
             {
                 free(bursts_buffer);
             }
+            fprintf(stderr, "Allocation failure in micro_build_bursts.\n");
         }
 
         if (write_cursor != NULL)
@@ -404,10 +390,7 @@ void micro_bursts_list_free(micro_bursts_list_t *bursts)
     }
 }
 
-int micro_detector_run(const bin_manager_t *bins,
-                       const anomaly_config_t *cfg,
-                       micro_events_list_t *out_events,
-                       micro_bursts_list_t *out_bursts)
+int micro_detector_run(const bin_manager_t *bins, const anomaly_config_t *cfg, micro_events_list_t *out_events, micro_bursts_list_t *out_bursts)
 {
     int ret_val;
     int proceed;
@@ -445,14 +428,8 @@ int micro_detector_run(const bin_manager_t *bins,
             current_metric = bins->metrics[metric_iter];
             if ((int)current_metric >= 0 && (int)current_metric < METRICS_COUNT)
             {
-                sweep_ok = micro_sweep_one_metric(bins->bins[current_metric],
-                                                  bins->total_bins,
-                                                  current_metric,
-                                                  cfg->ewma_alpha,
-                                                  cfg->micro_z_threshold,
-                                                  &events_buffer,
-                                                  &events_count,
-                                                  &events_capacity);
+                sweep_ok = micro_sweep_one_metric(bins->bins[current_metric], bins->total_bins, current_metric, cfg->ewma_alpha,
+                                                  cfg->micro_z_threshold, &events_buffer, &events_count, &events_capacity);
                 if (sweep_ok == 0)
                 {
                     proceed = 0;

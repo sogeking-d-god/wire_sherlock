@@ -29,6 +29,17 @@
 #define MICRO_ONE_MINUS_DEFAULT 1.0
 
 /**
+ * @def MICRO_EVENT_DIM_COUNT
+ * @brief Dimensionality of the points_arr_t used for Micro burst clustering.
+ *        The Micro channel clusters events only by their temporal position, so
+ *        the KD-tree operates as a true 1D structure (axis = bin_index).
+ *        Using dim_count = 1 (instead of padding vals[1..2] with zeros and
+ *        leaving dim_count = 3) prevents the tree from wasting depth on
+ *        degenerate splits along constant-zero axes.
+ */
+#define MICRO_EVENT_DIM_COUNT 1
+
+/**
  * @brief Runs the Micro channel end-to-end for one bin manager.
  *
  *        For every active metric the function:
@@ -37,12 +48,6 @@
  *             current spike never contaminates its own baseline.
  *          2. Emits a micro_event_t for any bin whose absolute sliding Z-score
  *             exceeds cfg->micro_z_threshold (after the EWMA warmup window).
- *
- *        All events from all metrics are concatenated into out_events.
- *        The events are then projected onto a 1D temporal point set
- *        (only vals[0] = bin_index, other dimensions zeroed) and clustered with the
- *        existing 3D dbscan_process_auto, which adapts epsilon via the elbow method.
- *        Each cluster becomes one micro_burst_t in out_bursts.
  *
  *        On success both lists are populated and owned by the caller.
  *        On allocation failure the lists are left zero-initialized.
@@ -53,10 +58,7 @@
  * @param out_bursts Output flat list of micro bursts (temporal clusters of events).
  * @return int 1 on success, 0 on invalid input or allocation failure.
  */
-int micro_detector_run(const bin_manager_t *bins,
-                       const anomaly_config_t *cfg,
-                       micro_events_list_t *out_events,
-                       micro_bursts_list_t *out_bursts);
+int micro_detector_run(const bin_manager_t *bins, const anomaly_config_t *cfg, micro_events_list_t *out_events, micro_bursts_list_t *out_bursts);
 
 /**
  * @brief Frees the internal items buffer of a micro_events_list_t and resets count.

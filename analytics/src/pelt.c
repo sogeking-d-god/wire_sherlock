@@ -4,9 +4,8 @@
  * @brief Calculates L2 cost for a segment using Prefix Sums in O(1).
  * Formula: SumSq - (Sum^2 / N).
  *
- * * STATISTICAL CONTEXT:
- *      L2 (Least Squares) is used when we assume the data follows a Normal
- *      (Gaussian) distribution and we are looking for changes in the MEAN.
+ * STATISTICAL CONTEXT:
+ *      L2 (Least Squares) is used when we assume the data follows a Normal (Gaussian) distribution and we are looking for changes in the MEAN.
  *
  * @param ps Pointer to precalculated prefix sums.
  * @param start Start index of the segment.
@@ -19,7 +18,7 @@ static double pelt_calculate_cost(prefix_sums_t *ps, int start, int end)
     double s = ps->sum[end + 1] - ps->sum[start];
     double s2 = ps->sum_sq[end + 1] - ps->sum_sq[start];
 
-    // L2: squere distance from avrage = SumSq - (Sum^2 / N)
+    // L2: square distance from average = SumSq - (Sum^2 / N)
     double cost = s2 - (s * s) / n;
     return (cost < 0) ? 0 : cost;
 }
@@ -95,8 +94,7 @@ static void pelt_update_candidates(prefix_sums_t *ps, double *F, int *candidates
  * @param min_out Output pointer for the minimum cost found.
  * @return int The index of the best changepoint (tau).
  */
-static int pelt_find_best_tau(prefix_sums_t *ps, double *F, int *candidates,
-                        int num_candidates, int t, double penalty, double *min_out)
+static int pelt_find_best_tau(prefix_sums_t *ps, double *F, int *candidates, int num_candidates, int t, double penalty, double *min_out)
 {
     int best_tau = 0;
     double min_val = DBL_MAX;
@@ -150,6 +148,7 @@ static pelt_segments_list_t pelt_reconstruct_segments(prefix_sums_t *ps, int *la
         num_segments++;
     }
 
+    // alocate and fill segments with stats: start index, end index, mean, variance that will alow us to calculate z_score and ssmd later on.
     list.segments = (pelt_segment_t*)malloc(num_segments * sizeof(pelt_segment_t));
     if (list.segments)
     {

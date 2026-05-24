@@ -6,17 +6,13 @@
 
 /**
  * @def ANOMALY_DEFAULT_K_SSMD
- * @brief Saturation point for the SSMD axis inside the tanh squash.
- *        Chosen because SSMD rarely exceeds this range in real traffic;
- *        values above it begin to saturate smoothly toward 1.0.
+ * @brief Saturation point for the SSMD axis inside the tanh squash. values above it begin to saturate smoothly toward 1.0.
  */
 #define ANOMALY_DEFAULT_K_SSMD 5.0
 
 /**
  * @def ANOMALY_DEFAULT_K_Z
  * @brief Saturation point for the global Z-score axis inside the tanh squash.
- *        Z grows with sqrt(N) so its raw range is wider than SSMD,
- *        hence a larger saturation knee.
  */
 #define ANOMALY_DEFAULT_K_Z 10.0
 
@@ -40,14 +36,13 @@
 
 /**
  * @def ANOMALY_DEFAULT_MACRO_MIN_PTS
- * @brief Minimum number of co-located segments needed to form a Macro cluster.
+ * @brief Minimum number of segments needed to form a Macro cluster.
  */
 #define ANOMALY_DEFAULT_MACRO_MIN_PTS 3
 
 /**
  * @def ANOMALY_DEFAULT_EWMA_ALPHA
  * @brief Smoothing factor for the streaming EWMA mean/variance in the Micro channel.
- *        Effective trailing window length is approximately 1/alpha bins.
  */
 #define ANOMALY_DEFAULT_EWMA_ALPHA 0.05
 
@@ -70,8 +65,7 @@
 #define ANOMALY_DEFAULT_MICRO_EPS_BINS 5
 
 /**
- * @brief One PELT segment after scoring with SSMD (vs predecessor)
- *        and global Z-score (vs file-wide mean). Pre-normalization.
+ * @brief One PELT segment after scoring with SSMD (vs predecessor) and global Z-score (vs file-wide mean). Pre-normalization.
  */
 typedef struct
 {
@@ -94,8 +88,7 @@ typedef struct
 } scored_segments_list_t;
 
 /**
- * @brief A Macro cluster produced by DBSCAN over the fused 3D point set.
- *        member_indexes references entries in the flat scored_segments_list_t.
+ * @brief A Macro cluster produced by DBSCAN over the fused 3D point set.  member_indexes references entries in the flat scored_segments_list_t.
  */
 typedef struct
 {
@@ -138,8 +131,7 @@ typedef struct
 } micro_events_list_t;
 
 /**
- * @brief A temporal cluster of Micro events (a Burst).
- *        member_indexes references entries in the flat micro_events_list_t.
+ * @brief A temporal cluster of Micro events (a Burst). member_indexes references entries in the flat micro_events_list_t.
  */
 typedef struct
 {
@@ -160,8 +152,7 @@ typedef struct
 } micro_bursts_list_t;
 
 /**
- * @brief Aggregate result of one anomaly detection pass over a PCAP.
- *        Owns all four nested lists and their backing arrays.
+ * @brief Aggregate result of one anomaly detection pass over a PCAP. Owns all four nested lists and their backing arrays.
  */
 typedef struct
 {
@@ -172,8 +163,7 @@ typedef struct
 } anomaly_result_t;
 
 /**
- * @brief Tunable knobs for the full anomaly detection pipeline.
- *        Populated with safe defaults by anomaly_config_defaults().
+ * @brief Tunable knobs for the full anomaly detection pipeline. Populated with safe defaults by anomaly_config_defaults().
  */
 typedef struct
 {

@@ -49,5 +49,11 @@ $(TARGET): $(OBJ)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+test: $(TARGET) tests/test_kd_tree_duplicates.c
+	$(CC) $(CFLAGS) tests/test_kd_tree_duplicates.c -L. -lanalytics $(LDFLAGS) -o tests/test_kd_tree_duplicates
+	./tests/test_kd_tree_duplicates
+
 clean:
-	rm -f src/*.o $(TARGET)
+	rm -f src/*.o $(TARGET) tests/test_kd_tree_duplicates
+
+.PHONY: all test clean

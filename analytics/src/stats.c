@@ -53,7 +53,7 @@ void stats_compute_ssmd_against_prev(pelt_segments_list_t *segments)
 
     if (segments != NULL && segments->segments != NULL && segments->count > 0)
     {
-        // First segment has no predecessor; SSMD is defined as 0 (baseline).
+        // First segment has no predecessor
         segments->segments[0].ssmd = 0.0;
 
         for (i = 1; i < segments->count; i++)

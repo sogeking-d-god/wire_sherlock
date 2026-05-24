@@ -51,10 +51,8 @@ void kd_tree_build_flat(int *indexes, int low, int high, int depth, points_arr_t
  * @param neighbor_indexes Output array for neighbor indexes.
  * @param count Pointer to the neighbor count.
  */
-static void kd_tree_find_neighbors_flat_recursive(int *indexes, int low, int high,
-                                          point_t *target, double eps, double eps_sq,
-                                          int depth, points_arr_t *data,
-                                          int *neighbor_indexes, int *count)
+static void kd_tree_find_neighbors_flat_recursive(int *indexes, int low, int high, point_t *target, double eps, double eps_sq,
+                                          int depth, points_arr_t *data, int *neighbor_indexes, int *count)
 {
     if (low <= high)
     {
@@ -210,9 +208,7 @@ static void add_distance_to_heap(double *heap, int *heap_len, int k, double new_
  * @param heap the max-heap to track the k closest distances
  * @param heap_len the current number of elements in the heap
  */
-static void kd_tree_knn_flat_recursive(int *indexes, int low, int high, point_t *target,
-                                       int depth, points_arr_t *data, int k,
-                                       double *heap, int *heap_len)
+static void kd_tree_knn_flat_recursive(int *indexes, int low, int high, point_t *target, int depth, points_arr_t *data, int k, double *heap, int *heap_len)
 {
     int mid, axis, near_low, near_high, far_low, far_high;
     double dist_sq, diff;

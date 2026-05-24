@@ -50,8 +50,7 @@ static int anomaly_scored_segments_reserve(scored_segments_list_t *segments, int
 
     if (segments != NULL && required_capacity > 0)
     {
-        grown = (scored_segment_t *)realloc(segments->items,
-                                            (size_t)required_capacity * sizeof(scored_segment_t));
+        grown = (scored_segment_t *)realloc(segments->items, (size_t)required_capacity * sizeof(scored_segment_t));
         if (grown != NULL)
         {
             segments->items = grown;
@@ -646,8 +645,6 @@ static int anomaly_build_filtered_micro_points(const micro_events_list_t *events
                     if (anomaly_metric_selected(mask, events->items[i].metric) == 1)
                     {
                         buffer[write_slot].vals[0] = (double)events->items[i].bin_index;
-                        buffer[write_slot].vals[1] = 0.0;
-                        buffer[write_slot].vals[2] = 0.0;
                         buffer[write_slot].original_index = i;
                         buffer[write_slot].cluster_id = UNCLASSIFIED;
                         write_slot = write_slot + 1;
@@ -656,7 +653,7 @@ static int anomaly_build_filtered_micro_points(const micro_events_list_t *events
 
                 out_points->arr = buffer;
                 out_points->len = selected_count;
-                out_points->dim_count = MAX_DIM_COUNT;
+                out_points->dim_count = MICRO_EVENT_DIM_COUNT;
                 ret_val = 1;
             }
         }
@@ -955,12 +952,7 @@ int anomaly_cluster_macro_segments(const scored_segments_list_t *segments,
         out_clusters->items = NULL;
         out_clusters->count = 0;
 
-        if (anomaly_build_filtered_macro_points(segments,
-                                                metric_mask,
-                                                bin_size_ms,
-                                                pcap_duration_seconds,
-                                                cfg,
-                                                &macro_points) == 1)
+        if (anomaly_build_filtered_macro_points(segments, metric_mask, bin_size_ms, pcap_duration_seconds, cfg, &macro_points) == 1)
         {
             if (macro_points.len >= cfg->macro_min_pts)
             {
