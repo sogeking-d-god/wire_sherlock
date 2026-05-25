@@ -73,7 +73,7 @@ async def login(
 
     # Constant-time path: always verify even on miss to prevent user-enumeration via timing
     dummy_hash = "$2b$12$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    password_ok = verify_password(body.password, user.password_hash if user else dummy_hash)
+    password_ok = await verify_password(body.password, user.password_hash if user else dummy_hash)
 
     if not user or not password_ok:
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -82,6 +82,23 @@ async def login(
     token = create_access_token(str(user.user_id))
     _set_auth_cookie(response, token)
     return {"username": user.username}
+
+
+@router.get("/me")
+async def me(
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Lightweight auth probe — frontend hits this on mount to decide whether
+    to render <AuthView> or the authenticated dashboard. Returns 401 via the
+    `get_current_user` dependency if the cookie is missing or expired.
+    Also returns the username so the UI can display it (avoids exposing the
+    user UUID as the display name)."""
+    user = await crud.get_user_by_id(db, user_id)
+    return {
+        "user_id": user_id,
+        "username": user.username if user else None,
+    }
 
 
 @router.post("/logout")

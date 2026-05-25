@@ -12,6 +12,43 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d wiresherlock"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: wiresherlock_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      # Named volume so pulled models survive container restarts
+      - ollama_models:/root/.ollama
+      - ./ollama-entrypoint.sh:/entrypoint.sh:ro
+    environment:
+      OLLAMA_MODEL: llama3.2:3b
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    healthcheck:
+      # `ollama list` exits 0 once the daemon's API is up. We deliberately do
+      # NOT gate on the model being pulled — warmup_model's retry loop in the
+      # backend handles that, so the backend can start (and serve auth) while
+      # the model is still downloading.
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    # Uncomment the block below to expose the host NVIDIA GPU to Ollama.
+    # Requires the nvidia-container-toolkit installed on the Docker host.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
 
   backend:
     build:
@@ -24,13 +61,16 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
     environment:
       # Internal Docker DNS allows using 'db' as the hostname
       DATABASE_URL: postgresql://user:password@db:5432/wiresherlock
-      # Force watchfiles (used by uvicorn --reload) to poll instead of inotify,
-      # matching Vite's usePolling:true fix for Windows→Docker volume mounts.
-      WATCHFILES_FORCE_POLLING: "true"
+      # Local LLM agent — Ollama runs in the sibling service.
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: llama3.2:3b
     volumes:
       - .:/app
       - ./uploads:/app/uploads
@@ -54,3 +94,4 @@ services:
 
 volumes:
   postgres_data:
+  ollama_models:

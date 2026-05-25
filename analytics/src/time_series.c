@@ -23,10 +23,22 @@ const metric_fn METRIC_REGISTRY[METRICS_COUNT] =
  */
 static long calculate_bin_index(struct timeval pkt_ts, struct timeval start_ts, double bin_size)
 {
-    int seconds_diff = pkt_ts.tv_sec - start_ts.tv_sec;
-    int microseconds_diff = pkt_ts.tv_usec - start_ts.tv_usec;
-    long total_duration = seconds_diff * MILLISECONDS_IN_SECOND + (double)microseconds_diff / MICROSECONDS_IN_MILLISECOND;
-    return (long)(total_duration / bin_size);
+    /* Use `long` (>= 32 bits, 64 bits on Linux x86_64) for the difference so
+     * captures longer than ~24 days don't overflow before we multiply by 1000.
+     * `tv_sec` is `time_t` on glibc x86_64 — already 64 bit — so the subtraction
+     * is safe; storing into `int` (the previous code) truncated to 32 bits and
+     * would silently corrupt the bin index for very long captures.            */
+    long seconds_diff = (long)pkt_ts.tv_sec - (long)start_ts.tv_sec;
+    long microseconds_diff = (long)pkt_ts.tv_usec - (long)start_ts.tv_usec;
+    double total_duration_ms = (double)seconds_diff * MILLISECONDS_IN_SECOND
+                             + (double)microseconds_diff / MICROSECONDS_IN_MILLISECOND;
+    if (bin_size <= 0)
+    {
+        /* Guard against a corrupted bin_size — caller already defaults this to
+         * DEFAULT_BIN_SIZE in bin_manager_init, so this is just belt+braces.   */
+        return 0;
+    }
+    return (long)(total_duration_ms / bin_size);
 }
 
 bin_manager_ret_e bin_manager_init(bin_manager_t * mgr)

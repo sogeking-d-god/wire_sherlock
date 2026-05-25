@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { Activity, Download, TrendingUp, Settings, Maximize2, Loader2 } from 'lucide-react';
 
+import { apiFetch } from '../../api/client';
 import { API_ENDPOINTS } from '../../config';
 import { useFileContext } from '../context/FileContext';
 
@@ -75,7 +76,7 @@ export function TrafficChart({ onToggleView, isFullView = false }: TrafficChartP
           const url = API_ENDPOINTS.METRICS.GET(metric.metricId.toString());
 
           try {
-            const resp = await fetch(url, {
+            const resp = await apiFetch(url, {
               method: 'GET',
               headers: {
                 'Accept': 'application/json',
@@ -137,6 +138,24 @@ export function TrafficChart({ onToggleView, isFullView = false }: TrafficChartP
     [key: string]: string | number; // This allows dynamic keys from availableMetrics
   }
 
+  // Format an epoch-seconds timestamp as HH:MM:SS or HH:MM:SS.mmm.
+  // We include milliseconds whenever the bin width is sub-second OR the total
+  // capture spans less than a minute — short captures otherwise show identical
+  // Start/End ticks because the seconds-only label rounds away the difference.
+  const formatTimestamp = (epochSeconds: number, includeMs: boolean): string => {
+    const date = new Date(epochSeconds * 1000);
+    const hms = date.toLocaleTimeString('en-US', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    if (!includeMs) return hms;
+    const frac = epochSeconds - Math.floor(epochSeconds);
+    const ms = String(Math.floor(frac * 1000)).padStart(3, '0');
+    return `${hms}.${ms}`;
+  };
+
   // Reconstruct chart data from backend metrics
   const reconstructChartData = (metrics: Map<number, MetricResponse>): ChartDataPoint[] => {
     let maxLength = 0;
@@ -159,27 +178,25 @@ export function TrafficChart({ onToggleView, isFullView = false }: TrafficChartP
     // Tell TS explicitly that baseMetric is a MetricResponse here
     const safeBase: MetricResponse = baseMetric;
 
+    const totalSpanSec = (maxLength * safeBase.bin_size_ms) / 1000;
+    const includeMs = safeBase.bin_size_ms < 1000 || totalSpanSec < 60;
+
     console.log('Reconstructing chart data:', {
       baseMetric: safeBase.metric_name,
       dataPoints: maxLength,
-      binSize: `${safeBase.bin_size_ms}ms`
+      binSize: `${safeBase.bin_size_ms}ms`,
+      totalSpan: `${totalSpanSec.toFixed(3)}s`,
+      includeMs,
     });
 
     const data: ChartDataPoint[] = [];
 
     for (let i = 0; i < maxLength; i++) {
       const timestamp = safeBase.start_ts + (i * safeBase.bin_size_ms / 1000);
-      const date = new Date(timestamp * 1000);
-      const timeStr = date.toLocaleTimeString('en-US', {
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
 
       // Initialize with typed object
       const dataPoint: ChartDataPoint = {
-        time: timeStr,
+        time: formatTimestamp(timestamp, includeMs),
         timestamp: timestamp * 1000,
       };
 
@@ -199,6 +216,36 @@ export function TrafficChart({ onToggleView, isFullView = false }: TrafficChartP
 
     return data;
   };
+
+  // Compute Start / End / Duration from the loaded metrics for the header readout.
+  const captureSpan = useMemo(() => {
+    let maxLength = 0;
+    let base: MetricResponse | null = null;
+    metricsData.forEach((m) => {
+      if (m.values.length > maxLength) {
+        maxLength = m.values.length;
+        base = m;
+      }
+    });
+    if (!base || maxLength === 0) return null;
+    const safe = base as MetricResponse;
+    const startSec = safe.start_ts;
+    const endSec = safe.start_ts + (maxLength * safe.bin_size_ms) / 1000;
+    const durationSec = endSec - startSec;
+    const includeMs = safe.bin_size_ms < 1000 || durationSec < 60;
+    const fmtDuration = (s: number) => {
+      if (s < 1) return `${(s * 1000).toFixed(0)} ms`;
+      if (s < 60) return `${s.toFixed(2)} s`;
+      const m = Math.floor(s / 60);
+      const rem = s - m * 60;
+      return `${m}m ${rem.toFixed(1)}s`;
+    };
+    return {
+      start: formatTimestamp(startSec, includeMs),
+      end: formatTimestamp(endSec, includeMs),
+      duration: fmtDuration(durationSec),
+    };
+  }, [metricsData]);
 
   // Measure container with ResizeObserver — bypasses ResponsiveContainer's iframe measurement bug
   useEffect(() => {
@@ -228,11 +275,31 @@ export function TrafficChart({ onToggleView, isFullView = false }: TrafficChartP
     <div className="relative h-full bg-[#0b1326] flex flex-col">
       {/* Header */}
       <div className="h-12 bg-[#060e20]/80 backdrop-blur border-b border-[#31394d] flex items-center justify-between px-4 shrink-0 relative z-20">
-        <div className="flex items-center gap-2">
-          <Activity className="w-4 h-4 text-[#00a3ff]" />
-          <span className="font-bold text-[#dae2fd] text-[11px] tracking-[0.88px]">
-            TRAFFIC_METRICS
-          </span>
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="flex items-center gap-2 shrink-0">
+            <Activity className="w-4 h-4 text-[#00a3ff]" />
+            <span className="font-bold text-[#dae2fd] text-[11px] tracking-[0.88px]">
+              TRAFFIC_METRICS
+            </span>
+          </div>
+          {captureSpan && (
+            <div className="hidden md:flex items-center gap-3 text-[10px] font-mono text-[#64748b]">
+              <span>
+                <span className="text-[#475569]">START</span>{' '}
+                <span className="text-[#dae2fd]">{captureSpan.start}</span>
+              </span>
+              <span className="text-[#31394d]">|</span>
+              <span>
+                <span className="text-[#475569]">END</span>{' '}
+                <span className="text-[#dae2fd]">{captureSpan.end}</span>
+              </span>
+              <span className="text-[#31394d]">|</span>
+              <span>
+                <span className="text-[#475569]">DUR</span>{' '}
+                <span className="text-[#10b981]">{captureSpan.duration}</span>
+              </span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-4">
           {/* Legend with data info - always visible */}

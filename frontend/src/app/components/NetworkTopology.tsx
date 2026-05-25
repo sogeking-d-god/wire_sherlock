@@ -4,6 +4,7 @@ import { Server, Maximize2, Search, ZoomIn, ZoomOut, Locate, X, ChevronDown, Loa
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import './NetworkTopology.css';
 
+import { apiFetch } from '../../api/client';
 import { API_ENDPOINTS } from '../../config';
 import { useFileContext } from '../context/FileContext';
 
@@ -152,7 +153,14 @@ const parseBackendData = (raw: BackendResponse): { nodeMap: Map<string, NodeDeta
     globalMacs.set(m.mac, m);
   });
 
-  const sessions: SessionData[] = (raw.links ?? []).map(s => {
+  // Belt-and-suspenders IPv6 filter: backend already drops IPv6 flows in
+  // build_topology_data, but if anything (e.g. a malformed v4-mapped address)
+  // slips through, recognize it by the presence of ':' in either endpoint and
+  // skip it before it reaches vis-network.
+  const isIpv4 = (s: BackendLinkData) =>
+    !s.src_ip.includes(':') && !s.dst_ip.includes(':');
+
+  const sessions: SessionData[] = (raw.links ?? []).filter(isIpv4).map(s => {
     const endStatus = s.end_status ?? '';
     const e = endStatus.toLowerCase();
     return {
@@ -269,7 +277,7 @@ export function NetworkTopology({ onToggleView, isFullView = false }: NetworkTop
       console.log('Fetching topology from:', url);
 
       try {
-        const resp = await fetch(url, {
+        const resp = await apiFetch(url, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',

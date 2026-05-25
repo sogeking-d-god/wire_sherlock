@@ -5,7 +5,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.routers import auth_router, metrics_router, pcap_router, topology_router
-from backend.routers import anomalies_router, http_attacks_router
+from backend.routers import anomalies_router, chat_router, http_attacks_router
+from backend.services.llm_service import warmup_model
 from backend.sessions import reaper
 from backend.sessions.session_manager import manager
 
@@ -13,14 +14,23 @@ from backend.sessions.session_manager import manager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     reaper_task = asyncio.create_task(reaper.run(manager))
+    # Warm up the LLM weights in the background so the first /api/chat doesn't
+    # pay a 30–60 s cold-start. Non-blocking — backend serves traffic immediately.
+    warmup_task = asyncio.create_task(warmup_model())
     app.state.reaper_task = reaper_task
+    app.state.warmup_task = warmup_task
     try:
         yield
     finally:
         reaper_task.cancel()
+        warmup_task.cancel()
         try:
             await reaper_task
         except asyncio.CancelledError:
+            pass
+        try:
+            await warmup_task
+        except (asyncio.CancelledError, Exception):
             pass
         await manager.terminate_all()
 
@@ -43,6 +53,7 @@ app.include_router(pcap_router.router)
 app.include_router(metrics_router.router)
 app.include_router(anomalies_router.router)
 app.include_router(http_attacks_router.router)
+app.include_router(chat_router.router)
 
 
 @app.get("/")

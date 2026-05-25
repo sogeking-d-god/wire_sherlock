@@ -1,40 +1,35 @@
-import { Search, LogOut, Archive, Save, Circle } from 'lucide-react';
+import { LogOut, Archive, Circle } from 'lucide-react';
 import { NavLink } from 'react-router';
-import { useState, useEffect } from 'react';
 
 import { useFileContext } from '../context/FileContext';
-import { API_ENDPOINTS } from '../../config';
 
+interface TopNavBarProps {
+  onLogout?: () => void;
+}
 
-export function TopNavBar() {
-  const { activeFileName, setActiveFile } = useFileContext();
-
+export function TopNavBar({ onLogout }: TopNavBarProps = {}) {
+  const { activeFileName } = useFileContext();
 
   return (
-    <div className="bg-[#060e20] h-[56px] border-b border-[#31394d] flex items-center justify-between px-4">
-      {/* Brand and Search */}
-      <div className="flex items-center gap-6">
-        <div className="font-black text-[#00a3ff] text-[18px] tracking-[1.8px]">
+    <div className="bg-[#060e20] h-[56px] border-b border-[#31394d] flex items-center justify-between gap-4 px-4">
+      {/* Brand + session pill — pill is allowed to shrink, brand never shrinks. */}
+      <div className="flex items-center gap-6 min-w-0 flex-1">
+        <div className="font-black text-[#00a3ff] text-[18px] tracking-[1.8px] shrink-0">
           WIRESHERLOCK
         </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-[13.5px] h-[13.5px] text-[#3f4852]" />
-          <input
-            type="text"
-            placeholder="SEARCH_QUERY..."
-            className="bg-[#171f33] border border-[#31394d] rounded px-3 pl-9 py-1.5 text-[13px] text-[#3f4852] w-[256px] outline-none focus:border-[#00a3ff]"
-          />
-        </div>
-        {/* Session Status */}
+
         {activeFileName ? (
-          <div className="flex items-center gap-2 px-3 py-1 rounded bg-[#10b981]/10 border border-[#10b981]/30">
-            <Circle className="w-2 h-2 fill-[#10b981] text-[#10b981]" />
-            <span className="text-[11px] font-bold text-[#10b981] uppercase tracking-wide">
+          <div className="flex items-center gap-2 px-3 py-1 rounded bg-[#10b981]/10 border border-[#10b981]/30 min-w-0 max-w-[420px]">
+            <Circle className="w-2 h-2 fill-[#10b981] text-[#10b981] shrink-0" />
+            <span
+              className="text-[11px] font-bold text-[#10b981] uppercase tracking-wide truncate"
+              title={activeFileName}
+            >
               Active: {activeFileName}
             </span>
           </div>
         ) : (
-          <div className="flex items-center gap-2 px-3 py-1 rounded bg-[#64748b]/10 border border-[#64748b]/30">
+          <div className="flex items-center gap-2 px-3 py-1 rounded bg-[#64748b]/10 border border-[#64748b]/30 shrink-0">
             <Circle className="w-2 h-2 fill-[#64748b] text-[#64748b]" />
             <span className="text-[11px] font-bold text-[#64748b] uppercase tracking-wide">
               No File Selected
@@ -43,13 +38,22 @@ export function TopNavBar() {
         )}
       </div>
 
-      {/* Navigation Links */}
-      <div className="flex items-center h-full">
-        <NavLink to="/files" className={({ isActive }) => `h-full px-4 flex items-center gap-2 ${isActive ? 'border-b-2 border-[#00a3ff]' : ''}`}>
+      {/* Navigation links — only the ones that actually go somewhere. */}
+      <div className="flex items-center h-full shrink-0">
+        <NavLink
+          to="/files"
+          className={({ isActive }) =>
+            `h-full px-4 flex items-center gap-2 ${isActive ? 'border-b-2 border-[#00a3ff]' : ''}`
+          }
+        >
           {({ isActive }) => (
             <>
               <Archive className={`w-4 h-4 ${isActive ? 'text-[#00a3ff]' : 'text-[#64748b]'}`} />
-              <span className={`font-bold text-[12px] uppercase ${isActive ? 'text-[#00a3ff]' : 'text-[#64748b] hover:text-[#00a3ff]'}`}>
+              <span
+                className={`font-bold text-[12px] uppercase ${
+                  isActive ? 'text-[#00a3ff]' : 'text-[#64748b] hover:text-[#00a3ff]'
+                }`}
+              >
                 ARCHIVE
               </span>
             </>
@@ -58,9 +62,7 @@ export function TopNavBar() {
         <NavLink
           to="/dashboard"
           className={({ isActive }) =>
-            `h-full px-4 flex items-center ${
-              isActive ? 'border-b-2 border-[#00a3ff]' : ''
-            }`
+            `h-full px-4 flex items-center ${isActive ? 'border-b-2 border-[#00a3ff]' : ''}`
           }
         >
           {({ isActive }) => (
@@ -73,25 +75,14 @@ export function TopNavBar() {
             </span>
           )}
         </NavLink>
-        <div className="h-full px-4 flex items-center">
-          <span className="font-bold text-[#64748b] text-[12px] tracking-[-0.6px] uppercase">SESSIONS</span>
-        </div>
-        <div className="h-full px-4 flex items-center">
-          <span className="font-bold text-[#64748b] text-[12px] tracking-[-0.6px] uppercase">PACKETS</span>
-        </div>
-        <div className="h-full px-4 flex items-center">
-          <span className="font-bold text-[#64748b] text-[12px] tracking-[-0.6px] uppercase">STATISTICS</span>
-        </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-3">
-        <button className="flex items-center gap-2 px-3 py-1.5 rounded hover:bg-[#171f33] text-[#88919d] hover:text-[#00a3ff]">
-          <Save className="w-4 h-4" />
-          <span className="font-bold text-[11px] tracking-[0.88px]">SAVE</span>
-        </button>
-        <div className="h-6 w-px bg-[#31394d]" />
-        <button className="flex items-center gap-2 px-3 py-1.5 rounded hover:bg-[#171f33] text-[#88919d] hover:text-[#f43f5e]">
+      {/* Logout — always visible, never overflowed. */}
+      <div className="flex items-center shrink-0">
+        <button
+          onClick={onLogout}
+          className="flex items-center gap-2 px-3 py-1.5 rounded hover:bg-[#171f33] text-[#88919d] hover:text-[#f43f5e]"
+        >
           <LogOut className="w-4 h-4" />
           <span className="font-bold text-[11px] tracking-[0.88px]">LOGOUT</span>
         </button>

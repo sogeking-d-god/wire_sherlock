@@ -1,3 +1,4 @@
+import asyncio
 import os
 import bcrypt
 from datetime import datetime, timezone, timedelta
@@ -9,12 +10,20 @@ ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = 8
 
 
-def hash_password(plain: str) -> str:
-    return bcrypt.hashpw(plain.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+# bcrypt is CPU-bound (cost 12 ≈ 100–300 ms). Running it directly from an
+# `async def` handler freezes the event loop and starves every other in-flight
+# request — including the SSE chat stream. `asyncio.to_thread` shifts the work
+# to the default executor so the loop stays responsive.
+async def hash_password(plain: str) -> str:
+    return await asyncio.to_thread(
+        lambda: bcrypt.hashpw(plain.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    )
 
 
-def verify_password(plain: str, hashed: str) -> bool:
-    return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+async def verify_password(plain: str, hashed: str) -> bool:
+    return await asyncio.to_thread(
+        bcrypt.checkpw, plain.encode("utf-8"), hashed.encode("utf-8")
+    )
 
 
 def create_access_token(user_id: str) -> str:

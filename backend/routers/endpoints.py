@@ -21,3 +21,7 @@ class AnomaliesEndpoints:
 class HttpAttacksEndpoints:
     PREFIX = "/api/http"
     ATTACKS = "/attacks"
+
+class ChatEndpoints:
+    PREFIX = "/api"
+    CHAT = "/chat"

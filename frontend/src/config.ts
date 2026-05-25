@@ -1,22 +1,34 @@
 // src/config.ts
 
 export const API_BASE_URL = 'http://localhost:8000';
+
+// All paths below are RELATIVE — pass them to apiFetch / apiJson, which
+// prepends API_BASE_URL and always sends credentials.
 export const API_ENDPOINTS = {
+  AUTH: {
+    LOGIN: '/auth/login',
+    SIGNUP: '/auth/signup',
+    LOGOUT: '/auth/logout',
+    ME: '/auth/me',
+  },
+
+  CHAT: '/api/chat',
+
   // PCAP Management
   PCAP: {
-    FILES: `${API_BASE_URL}/api/pcap/files`,
-    SESSION: `${API_BASE_URL}/api/pcap/active-session`,
-    UPLOAD: `${API_BASE_URL}/api/pcap/upload`,
-    SELECT: (fileId: string) => `${API_BASE_URL}/api/pcap/select/${fileId}`,
+    FILES: '/api/pcap/files',
+    SESSION: '/api/pcap/active-session',
+    UPLOAD: '/api/pcap/upload',
+    SELECT: (fileId: string) => `/api/pcap/select/${fileId}`,
   },
 
   // Topology
   TOPOLOGY: {
-    ANALYZE: `${API_BASE_URL}/api/topology/analyze`,
+    ANALYZE: '/api/topology/analyze',
   },
 
   // Metrics
   METRICS: {
-    GET: (metricId: string) => `${API_BASE_URL}/api/metrics/${metricId}`,
+    GET: (metricId: string) => `/api/metrics/${metricId}`,
   },
 };

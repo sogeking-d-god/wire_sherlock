@@ -21,7 +21,7 @@ uint32_t mac_table_calculate_hash(const uint8_t *mac_addr)
  */
 mac_table_t *mac_table_init()
 {
-    mac_table_t *table = (mac_table_t *)calloc(MAC_TABLE_SIZE, 1);
+    mac_table_t *table = (mac_table_t *)calloc(1, MAC_TABLE_SIZE);
 
     return table;
 }

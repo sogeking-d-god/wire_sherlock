@@ -7,10 +7,11 @@ from backend.services.auth_service import hash_password
 
 
 async def create_user(db: AsyncSession, username: str, plain_password: str) -> User:
+    pwd_hash = await hash_password(plain_password)
     user = User(
         user_id=uuid.uuid4(),
         username=username,
-        password_hash=hash_password(plain_password),
+        password_hash=pwd_hash,
     )
     db.add(user)
     await db.commit()

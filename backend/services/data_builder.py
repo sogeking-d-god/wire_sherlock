@@ -68,9 +68,16 @@ def build_topology_data(raw_result: ParserResult):
                     macs_dict[current_mac]["total_bytes"] += ip_entry.bytes
                     macs_dict[current_mac]["associated_ips"].append(target_ip)
 
-    # Build sessions from flows
+    # Build sessions from flows.
+    # IPv4-only: the topology view (and the rest of this project) only renders
+    # IPv4 traffic. The C engine tags FlowKey.ip_type with 4 (IPv4) or 6 (IPv6);
+    # drop the IPv6 flows here at the data boundary so neither the UI nor the
+    # LLM agent has to filter them downstream.
+    IP_VERSION_4 = 4
     for flow in raw_result.flows or []:
         key = flow.key
+        if key.ip_type != IP_VERSION_4:
+            continue
         for sess in flow.sessions:
             status = translate_tcp_state(sess.start_state, sess.end_state)
 

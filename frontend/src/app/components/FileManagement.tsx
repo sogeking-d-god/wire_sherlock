@@ -6,6 +6,7 @@ import { Progress } from './ui/progress';
 import { useFileContext } from '../context/FileContext';
 import { toast } from 'sonner';
 
+import { apiFetch } from '../../api/client';
 import { API_ENDPOINTS } from '../../config';
 
 
@@ -36,7 +37,7 @@ export function FileManagement() {
   const fetchFiles = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(API_ENDPOINTS.PCAP.FILES);
+      const response = await apiFetch(API_ENDPOINTS.PCAP.FILES);
 
       if (response.ok) {
         const data = await response.json();
@@ -108,8 +109,10 @@ export function FileManagement() {
         });
       }, 200);
 
-      // CHANGE: Using centralized config for upload
-      const response = await fetch(API_ENDPOINTS.PCAP.UPLOAD, {
+      // multipart/form-data — pass the FormData body and let apiFetch attach
+      // credentials. We DO NOT set Content-Type so the browser adds the
+      // multipart boundary automatically.
+      const response = await apiFetch(API_ENDPOINTS.PCAP.UPLOAD, {
         method: 'POST',
         body: formData,
       });
@@ -142,7 +145,7 @@ export function FileManagement() {
       // CHANGE: Using dynamic helper from config
       const url = API_ENDPOINTS.PCAP.SELECT(fileId);
 
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method: 'POST',
       });
 
