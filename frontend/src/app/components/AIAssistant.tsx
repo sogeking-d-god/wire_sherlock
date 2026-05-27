@@ -305,9 +305,9 @@ function MessageBubble({ msg, activeTool, isStreaming }: MessageBubbleProps) {
             : 'bg-[#171f33] text-[#dae2fd] border border-[#31394d]'
         }`}
       >
-        <div className="text-[12px] leading-relaxed whitespace-pre-wrap">
+        <div className="text-[12px] leading-relaxed whitespace-pre-wrap min-h-[1em]">
           {msg.content}
-          {isStreaming && msg.content && (
+          {isStreaming && (
             <span className="inline-block w-2 h-3 ml-0.5 bg-[#00a3ff] animate-pulse align-middle" />
           )}
         </div>

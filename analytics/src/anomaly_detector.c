@@ -148,11 +148,7 @@ static void anomaly_free_prefix_sums(prefix_sums_t *ps)
  * @param out_segments Append-only output list.
  * @return int 1 on success, 0 on allocation failure.
  */
-static int anomaly_process_one_metric(const double *bin_values,
-                                      long bin_count,
-                                      metric_index_e metric,
-                                      double z_sensitivity,
-                                      scored_segments_list_t *out_segments)
+static int anomaly_process_one_metric(const double *bin_values, long bin_count, metric_index_e metric, double z_sensitivity, scored_segments_list_t *out_segments)
 {
     int ret_val;
     int reservation_ok;

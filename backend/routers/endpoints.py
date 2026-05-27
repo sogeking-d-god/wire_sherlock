@@ -8,6 +8,7 @@ class PCAPEndpoints:
 class TopologyEndpoints:
     PREFIX = "/api/topology"
     ANALYZE = "/analyze"
+    SUBNET = "/subnet"
 
 class MetricsEndpoints:
     PREFIX = "/api/metrics"

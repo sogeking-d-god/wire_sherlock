@@ -75,13 +75,24 @@ export async function* streamChat(
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
 
+      // Normalize CRLF -> LF so the "\n\n" frame separator works regardless of
+      // anything in the request path that touched line endings.
+      if (buffer.indexOf("\r\n") !== -1) {
+        buffer = buffer.replace(/\r\n/g, "\n");
+      }
+
       // SSE frames are separated by a blank line ("\n\n").
       let sepIdx: number;
       while ((sepIdx = buffer.indexOf("\n\n")) >= 0) {
         const frame = buffer.slice(0, sepIdx);
         buffer = buffer.slice(sepIdx + 2);
         const parsed = parseFrame(frame);
-        if (parsed) yield parsed;
+        if (parsed) {
+          // Temporary diagnostic — remove once the stream is verified stable.
+          // eslint-disable-next-line no-console
+          console.log("[streamChat] event:", parsed.event, parsed.data);
+          yield parsed;
+        }
       }
     }
   } finally {
@@ -90,7 +101,7 @@ export async function* streamChat(
 }
 
 function parseFrame(frame: string): ChatEvent | null {
-  let eventName = "message";
+  let eventName = "";
   let dataLine = "";
   for (const rawLine of frame.split("\n")) {
     const line = rawLine.replace(/\r$/, "");
@@ -103,7 +114,7 @@ function parseFrame(frame: string): ChatEvent | null {
       dataLine += (dataLine ? "\n" : "") + line.slice(5).trim();
     }
   }
-  if (!dataLine) return null;
+  if (!eventName || !dataLine) return null;
   try {
     const data = JSON.parse(dataLine);
     return { event: eventName, data } as ChatEvent;

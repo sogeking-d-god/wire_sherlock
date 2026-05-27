@@ -294,6 +294,8 @@ flow_table_process_packet_return_e tcp_handler_process_flow_update(flow_node_t *
                 // Retransmission
                 else
                 {
+                    info->is_retransmit = TRUE;
+                    session->devices[dev_idx].data.retransmit_count++;
                     free(msg);
                 }
             }

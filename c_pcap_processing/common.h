@@ -108,6 +108,10 @@ typedef struct
     packet_port_info_t port_info;
 
     packet_info_offsets_t offsets;
+
+    // Session-derived: set by tcp_handler when a packet is identified as a
+    // retransmission. Not a wire-level flag.
+    boolean_e is_retransmit;
 } packet_info_t;
 
 typedef enum {

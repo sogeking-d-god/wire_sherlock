@@ -73,6 +73,7 @@ SRCS = $(CORE_DIR)/main.c \
        $(SRC_ANALYTICS)/micro_detector.c \
        $(SRC_ANALYTICS)/pelt_dbscan.c \
        $(WRAPPERS_DIR)/parsing/metrics_wrapper.c \
+       $(WRAPPERS_DIR)/parsing/subnet_query_wrapper.c \
        $(WRAPPERS_DIR)/analytics/http_attack_wrapper.c \
        $(WRAPPERS_DIR)/analytics/anomaly_wrapper.c \
        $(CORE_DIR)/engine_controller.c

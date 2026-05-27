@@ -11,6 +11,7 @@
 #include "http_signatures.h"
 #include "http_attack_wrapper.h"
 #include "anomaly_wrapper.h"
+#include "subnet_query_wrapper.h"
 
 /**
  * @brief Runs the main engine command loop, processing JSON commands from the client.
@@ -111,7 +112,13 @@ void run_engine_loop(int client_sock, const char *pcap_path)
                     handle_cluster_anomalies_request(client_sock, core, request);
                 }
 
-                // 7. EXIT
+                // 7. GET_SUBNET_IPS (CIDR lookup over the global IP trees)
+                else if (strcmp(cmd->valuestring, CMD_GET_SUBNET_IPS) == 0)
+                {
+                    handle_get_subnet_ips_request(client_sock, core, request);
+                }
+
+                // 8. EXIT
                 else if (strcmp(cmd->valuestring, CMD_EXIT) == 0)
                 {
                     send_api_response(client_sock, STATUS_SUCCESS, cJSON_CreateString("Shutting down..."));

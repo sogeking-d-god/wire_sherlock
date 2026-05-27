@@ -78,6 +78,7 @@ typedef struct
 {
     uint32_t packets_sent;
     uint32_t bytes_sent;
+    uint32_t retransmit_count;
 
     uint32_t last_seq;
     uint32_t last_ack;

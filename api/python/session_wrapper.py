@@ -12,6 +12,7 @@ from api.python.c_schemas import (
     AnomalyBundle,
     AnomalyClusterResult,
     HttpAttackReport,
+    IpStat,
     MetricResult,
     ParserResult,
 )
@@ -165,6 +166,29 @@ class WireSherlockSession:
         resp = await self._send(ipc_config.CMD_GENERATE_ANOMALIES, payload)
         data = self._require_success(resp, ipc_config.CMD_GENERATE_ANOMALIES)
         return AnomalyBundle(**data)
+
+    async def query_subnet_async(
+        self,
+        subnet: str,
+        prefix_len: int,
+        ip_type: int,
+    ) -> list[IpStat]:
+        if ip_type not in (4, 6):
+            raise HTTPException(status_code=400, detail="ip_type must be 4 or 6")
+        max_prefix = 32 if ip_type == 4 else 128
+        if not 0 <= prefix_len <= max_prefix:
+            raise HTTPException(
+                status_code=400,
+                detail=f"prefix_len must be in [0, {max_prefix}] for IPv{ip_type}",
+            )
+        payload = {
+            "subnet": subnet,
+            "prefix_len": int(prefix_len),
+            "ip_type": int(ip_type),
+        }
+        resp = await self._send(ipc_config.CMD_GET_SUBNET_IPS, payload)
+        data = self._require_success(resp, ipc_config.CMD_GET_SUBNET_IPS)
+        return [IpStat(**item) for item in data]
 
     async def cluster_anomalies(
         self,

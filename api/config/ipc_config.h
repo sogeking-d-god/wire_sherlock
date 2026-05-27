@@ -11,6 +11,7 @@
 #define CMD_ANALYZE_HTTP "cmd_analyze_http"
 #define CMD_GENERATE_ANOMALIES "cmd_generate_anomalies"
 #define CMD_CLUSTER_ANOMALIES "cmd_cluster_anomalies"
+#define CMD_GET_SUBNET_IPS "cmd_get_subnet_ips"
 #define STATUS_SUCCESS "status_success"
 #define STATUS_ERROR "status_error"
 #define STATUS_BINARY "status_binary"

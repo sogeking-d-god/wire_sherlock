@@ -66,12 +66,25 @@ _METRIC_LIST_FOR_PROMPT = "\n".join(
 
 SYSTEM_PROMPT = f"""You are WireSherlock, a network forensic assistant analyzing one PCAP for one user.
 
-Rules:
-- Use the provided tools to get evidence; do not invent findings.
-- For HTTP attacks (SQLi/XSS/etc) call find_http_attacks.
-- For "spikes / weird traffic / anomalies" call find_anomalies with metric_mask={_ALL_METRICS_MASK} (all metrics).
-- Optionally cluster results with cluster_anomalies using IDs from find_anomalies.
-- Keep replies under 4 sentences. Cite metric name, time range in seconds, and z-score or attack class. If a tool returns count=0, say so plainly.
+Tool-dispatch rules (STRICT — wrong tool = wrong answer):
+- Question mentions "HTTP", "SQLi", "XSS", "injection", "attack signature", "payload" → call find_http_attacks. NEVER call find_anomalies for these.
+- Question mentions "spike", "burst", "anomaly", "weird traffic", "unusual", "z-score", "outlier" → call find_anomalies with metric_mask={_ALL_METRICS_MASK} (all metrics). NEVER call find_http_attacks for these.
+- Optionally group anomaly results with cluster_anomalies using IDs from a previous find_anomalies result.
+- Never invent findings. If a tool returns count=0 or an empty list, say so plainly in one sentence and stop.
+
+Field glossary (use EXACTLY these meanings — do not invent acronyms or units):
+- z_global (macro segments only): file-wide z-score on a PELT segment — standard deviations from the file-wide mean of that metric. Dimensionless. Higher absolute value = more anomalous segment.
+- z_sliding (micro events only): sliding-window EWMA z-score for a single 100 ms bin. Dimensionless. Higher absolute value = more anomalous single-bin spike.
+- ssmd (macro segments only): Strictly Standardized Mean Difference between this PELT segment and the previous one — |Δmean| / sqrt(var_i + var_{{i-1}}). Dimensionless effect size of the changepoint. NOT seconds, NOT a delay, NOT an absolute anomaly score. Micro events do NOT have ssmd.
+- time_s / t_s: seconds since pcap start. A pair [start, end] for macro segments; a single value for micro events.
+- metric names (PACKET_COUNT, BYTE_COUNT, SYN_COUNT, FIN_COUNT, RST_COUNT, ACK_COUNT, PUSH_COUNT): each is a per-100ms-bin packet / byte / flag count.
+- attack_class: the signature category label (e.g. SQLi, XSS) — quote it verbatim.
+
+Reply rules (CRITICAL):
+- Always provide a short text reply to the user. Never finish a turn with only a tool call and no words.
+- After a tool returns, summarize its findings in natural language. Cite the metric name, the time range in seconds, the z-score, or the attack class — whichever the tool actually returned.
+- Do not expand abbreviations you are unsure of. If the tool output uses an abbreviation that is not in the glossary above, quote it verbatim without inventing an expansion.
+- Keep the final reply under 4 sentences. Do not restate tool JSON verbatim.
 """
 
 
@@ -357,12 +370,18 @@ class WireSherlockAgent:
         field only appears on the FINAL chunk), so on those turns we just
         consume the stream silently and act on the assembled tool_calls.
         """
+        logger.info(
+            "Agent stream starting user=%s prompt=%r",
+            self.user_id, user_prompt[:80],
+        )
+        hops_completed = 0
         messages: list[dict] = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
         ]
 
         for _hop in range(self.max_tool_hops + 1):
+            hops_completed = _hop + 1
             content_parts: list[str] = []
             tool_calls: list[Any] = []
             saw_any_chunk = False
@@ -374,7 +393,10 @@ class WireSherlockAgent:
                     tools=_TOOL_SCHEMAS,
                     stream=True,
                     options={
-                        "temperature": 0.2,
+                        # 0.0 = deterministic tool routing. The 1b model picks
+                        # the wrong tool roughly 1 turn in 3 at 0.2; at 0.0 it
+                        # follows the dispatch rules in SYSTEM_PROMPT reliably.
+                        "temperature": 0.0,
                         # Cap output length so the model doesn't ramble for
                         # minutes on CPU. 256 tokens is plenty for the
                         # "summarize the tool result" reply.
@@ -400,16 +422,32 @@ class WireSherlockAgent:
                         tool_calls = list(tc)
             except Exception as e:
                 logger.exception("Ollama chat failed")
+                logger.info(
+                    "Agent stream finished user=%s hops=%d reason=error",
+                    self.user_id, hops_completed,
+                )
                 yield {"event": "done", "data": {"reason": "error", "detail": str(e)}}
                 return
 
             if not saw_any_chunk:
+                logger.info(
+                    "Agent stream finished user=%s hops=%d reason=empty_stream",
+                    self.user_id, hops_completed,
+                )
                 yield {"event": "done", "data": {"reason": "error", "detail": "empty stream from ollama"}}
                 return
 
             content = "".join(content_parts)
 
             if not tool_calls:
+                if not content.strip():
+                    # Llama-3.2:1b sometimes returns zero tokens after a tool result.
+                    # Surface a sentinel so the user doesn't see an empty bubble.
+                    yield {"event": "token", "data": {"delta": "(no response from model)"}}
+                logger.info(
+                    "Agent stream finished user=%s hops=%d reason=complete tokens=%d",
+                    self.user_id, hops_completed, len(content),
+                )
                 yield {"event": "done", "data": {"reason": "complete"}}
                 return
 
@@ -436,6 +474,9 @@ class WireSherlockAgent:
 
                 impl = self._tools.get(fn)
                 if impl is None:
+                    # Use print() instead of logger so it shows up regardless of
+                    # uvicorn's log config — this is intentionally high-visibility.
+                    print(f"[TOOL CALL TRIGGERED] Tool: {fn} | Args: {args} | (unknown tool — no C wrapper invoked)", flush=True)
                     tool_result: dict = {"error": f"Unknown tool: {fn}"}
                     yield {
                         "event": "tool_call",
@@ -447,8 +488,14 @@ class WireSherlockAgent:
                         },
                     }
                 else:
+                    print(f"[TOOL CALL TRIGGERED] Tool: {fn} | Args: {json.dumps(args, ensure_ascii=False)}", flush=True)
                     try:
                         tool_result = await impl(args)
+                        print(
+                            f"[C-ENGINE RAW RESPONSE] Tool: {fn} | Output: "
+                            f"{json.dumps(tool_result, ensure_ascii=False, default=str)}",
+                            flush=True,
+                        )
                         yield {
                             "event": "tool_call",
                             "data": {
@@ -460,6 +507,7 @@ class WireSherlockAgent:
                     except Exception as e:
                         logger.exception("Tool %s failed", fn)
                         tool_result = {"error": f"{type(e).__name__}: {e}"}
+                        print(f"[C-ENGINE RAW RESPONSE] Tool: {fn} | Output: {tool_result}", flush=True)
                         yield {
                             "event": "tool_call",
                             "data": {
@@ -478,6 +526,10 @@ class WireSherlockAgent:
                     }
                 )
 
+        logger.info(
+            "Agent stream finished user=%s hops=%d reason=tool_hop_limit",
+            self.user_id, hops_completed,
+        )
         yield {
             "event": "done",
             "data": {

@@ -1,16 +1,17 @@
 #include "time_series.h"
 
-static metric_index_e all_metrics_static[] = {METRIC_PACKET_COUNT, METRIC_BYTE_COUNT, METRIC_SYN_FLAG_COUNT, METRIC_FIN_FLAG_COUNT, METRIC_RST_FLAG_COUNT, METRIC_ACK_FLAG_COUNT, METRIC_PSH_FLAG_COUNT};
+static metric_index_e all_metrics_static[] = {METRIC_PACKET_COUNT, METRIC_BYTE_COUNT, METRIC_SYN_FLAG_COUNT, METRIC_FIN_FLAG_COUNT, METRIC_RST_FLAG_COUNT, METRIC_ACK_FLAG_COUNT, METRIC_PSH_FLAG_COUNT, METRIC_RETRANSMIT_COUNT};
 
 const metric_fn METRIC_REGISTRY[METRICS_COUNT] =
 {
-    metric_packet_count,   // Index 0
-    metric_byte_count,     // Index 1
-    metric_syn_flag_count, // Index 2
-    metric_fin_flag_count, // Index 3
+    metric_packet_count,    // Index 0
+    metric_byte_count,      // Index 1
+    metric_syn_flag_count,  // Index 2
+    metric_fin_flag_count,  // Index 3
     metric_rst_flag_count,  // Index 4
     metric_ack_flag_count,  // Index 5
-    metric_psh_flag_count   // Index 6
+    metric_psh_flag_count,  // Index 6
+    metric_retransmit_count // Index 7
 };
 
 /**

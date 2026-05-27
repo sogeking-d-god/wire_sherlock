@@ -88,6 +88,11 @@ async def chat(
             detail="LLM backend is still warming up — try again in a moment",
         )
 
+    logger.info(
+        "POST /api/chat received user=%s prompt_len=%d max_tool_hops=%s",
+        user_id, len(body.prompt), body.max_tool_hops,
+    )
+
     agent = WireSherlockAgent(
         session=session,
         user_id=user_id,

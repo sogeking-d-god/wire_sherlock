@@ -49,3 +49,11 @@ void metric_ack_flag_count(const packet_info_t *pkt, double *target_cell)
         (*target_cell)++;
     }
 }
+
+void metric_retransmit_count(const packet_info_t *pkt, double *target_cell)
+{
+    if (pkt->is_retransmit == TRUE)
+    {
+        (*target_cell)++;
+    }
+}

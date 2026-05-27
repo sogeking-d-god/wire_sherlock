@@ -146,3 +146,11 @@ class ClusterRequest(BaseModel):
     macro_ids: List[int] = []
     micro_ids: List[int] = []
     cfg: Optional[AnomalyClusterConfig] = None
+
+
+class SubnetQueryRequest(BaseModel):
+    """Inbound payload for the /topology/subnet route — see C engine
+    handle_get_subnet_ips_request for the matching wire format."""
+    subnet: str
+    prefix_len: int = Field(ge=0, le=128)
+    ip_type: int = Field(ge=4, le=6)
